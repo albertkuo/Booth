@@ -9,40 +9,50 @@ load('~/Booth/string_matching/Products.RData')
 load('~/Booth/string_matching/Meta-Data.RData')
 prod_meta = merge(products, meta_data)
 prod_meta = prod_meta[department_descr!="GENERAL MERCHANDISE"]
+## Aggregate revenue sums by brands
 brands_RMS = prod_meta[,.(rev_sum = sum(revenue_RMS)), 
                         by=c("brand_code_uc","brand_descr",
-                             "product_module_descr","product_group_descr")]
+                             "product_module_descr","product_group_descr",
+                             "department_descr")]
+## Add own category label
 brands_RMS = merge(brands_RMS, productgroupdict, 
                    by="product_group_descr", all.x=T)
 brands_RMS = brands_RMS[order(rev_sum,decreasing=T)]
 brands_RMS = brands_RMS[!grepl("CTL BR", brands_RMS$brand_descr)]
+## Save brand data
 setcolorder(brands_RMS, c("brand_code_uc","brand_descr",
                           "product_module_descr","product_group_descr",
-                          "Label","rev_sum"))
-saveRDS(brands_RMS, '~/Booth/string_matching/brands_RMS.rds')
+                          "department_descr","category","rev_sum"))
+saveRDS(brands_RMS, '~/Booth/string_matching/string_matching_app/data/brands_RMS.rds')
+## Save prod data
+prod_meta = prod_meta[,.(upc_descr, 
+                         brand_code_uc, brand_descr,
+                         product_module_descr, product_group_descr,
+                         department_descr)]
+setkey(prod_meta)
+prod_meta = unique(prod_meta)
+saveRDS(prod_meta, '~/Booth/string_matching/string_matching_app/data/prod_meta.rds')
+## Select top 100 brands
 brands_top_RMS = brands_RMS[1:100]
 brandnames_RMS = brands_top_RMS$brand_descr
 
 # Ad Intel Data
-brands_ad = readRDS('~/Booth/brand_spend.rds')
+brands_ad = readRDS('~/Booth/brand_spend/brand_spend.rds')
 brands_ad = brands_ad[PCCSubDesc %in% pccsubs] # highlighted pccs only
 brands_ad = brands_ad[order(spend_sum,decreasing=T)]
-# What to do with BrandVariant?
-setkey(brands_ad, BrandDesc)
+setkey(brands_ad, BrandDesc, BrandVariant)
 brands_unique_ad = unique(brands_ad)
 brands_unique_ad = merge(brands_unique_ad, pccindusdict, 
                          by="PCCIndusDesc", all.x=T)
-brands_unique_ad = brands_unique_ad[,.(BrandCode,BrandDesc,ProductDesc,
+brands_unique_ad = brands_unique_ad[,.(BrandCode,BrandVariant,BrandDesc,ProductDesc,
                                        PCCSubDesc,PCCMajDesc,PCCIndusDesc,
-                                       Label,spend_sum)]
-saveRDS(brands_unique_ad, '~/Booth/string_matching/brands_ad.rds')
-brandnames_ad = brands_unique_ad$BrandDesc
+                                       category,spend_sum)]
+saveRDS(brands_unique_ad, '~/Booth/string_matching/string_matching_app/data/brands_ad.rds')
+brandnames_ad = brands_unique_ad$BrandDesc # or use BrandVariant?
 
 # Fuzzy string matching with agrep
 candidates_indices = sapply(brandnames_RMS, function(x){agrep(x, brandnames_ad, fixed=T)})
 candidates_names = sapply(candidates_indices, function(i){brandnames_ad[i]})
-# dist.names = sapply(brandnames_RMS, function(x){agrep(x, brandnames_ad, value=T, fixed=T)})
-# dist.names = sapply(dist.indices, function(x){brandnames_ad[x]})
 
 # Option 1: sort by string distance 
 # candidates_distances = sapply(1:length(brandnames_RMS), function(i){stringdist(brandnames_RMS[i], candidates_names[[i]])})
@@ -69,7 +79,7 @@ names(candidates_names) = brandnames_RMS
 empty_candidates_table <- function(i){
   candidates_table = data.table(BrandDesc=NA,ProductDesc=NA,
                                 PCCSubDesc=NA,PCCMajDesc=NA,
-                                PCCIndusDesc=NA,Label=NA,spend_sum=NA)
+                                PCCIndusDesc=NA,category=NA,spend_sum=NA)
   candidates_table = cbind(brands_top_RMS[i,], candidates_table)
   return(candidates_table)
 }
@@ -79,12 +89,12 @@ create_candidates_table <- function(i){
     return(empty_candidates_table(i))
   }
   # No. of candidates > 0
-  RMS_brand_label = brands_top_RMS[i,Label]
+  RMS_brand_category = brands_top_RMS[i,category]
   candidates_rows = lapply(candidates_indices[[i]], function(j)
     {brands_unique_ad[j,list(BrandDesc,ProductDesc,PCCSubDesc,
-                             PCCMajDesc,PCCIndusDesc,Label,spend_sum)]})
+                             PCCMajDesc,PCCIndusDesc,category,spend_sum)]})
   candidates_table = Reduce(rbind, candidates_rows)
-  candidates_table = candidates_table[Label==RMS_brand_label] # Match label (broad category)
+  candidates_table = candidates_table[category==RMS_brand_category] # Match category (broad category)
   if(nrow(candidates_table)==0){
     return(empty_candidates_table(i))
   } else{
