@@ -54,7 +54,7 @@ ui <- shinyUI(
     
     br(),
     fluidRow(
-      column(12, align="center", h3(em("You have selected the following RMS brand.", style="color:dodgerblue")))
+      column(12, align="center", h3(em("You have selected the following RMS brand.", style="color:steelblue")))
     
       ),
     fluidRow(
@@ -64,7 +64,7 @@ ui <- shinyUI(
     br(),
     fluidRow(
       column(12, align="center",
-             actionButton("toggleAdditional", "Show/hide products and similar brands",
+             actionButton("toggleAdditional", "Show/hide products and similar RMS brands",
                  class="btn-default"))
     ),
     shinyjs::hidden(
@@ -125,16 +125,19 @@ server <- shinyServer(function(input, output, session) {
   
   ad_candidates <- reactive({
     queryrow <- queryrow()
-    if(queryrow$brand_descr!=""){
-      candidates_indices = agrep(queryrow$brand_descr, brandnames_ad, fixed=T)
-      data <- brands_ad[candidates_indices,]
-    } else {
-      data <- brands_ad[brands_ad$BrandVariant=="",]
+    data = queryrow
+    if(nrow(queryrow)>0){
+      if(queryrow$brand_descr!=""){
+        candidates_indices = agrep(queryrow$brand_descr, brandnames_ad, fixed=T)
+        data <- brands_ad[candidates_indices,]
+      } else {
+        data <- brands_ad[brands_ad$BrandVariant=="",]
+      }
+      data <- data[data$category==queryrow$category,]
+      # If no matches, return entire dataset in the same category
+      if(nrow(data)==0){data <- brands_ad[brands_ad$category==queryrow$category,]}
+      data <- data[order(data$spend_sum,decreasing=T),]
     }
-    data <- data[data$category==queryrow$category,]
-    # If no matches, return entire dataset in the same category
-    if(nrow(data)==0){data <- brands_ad[brands_ad$category==queryrow$category,]}
-    data <- data[order(data$spend_sum,decreasing=T),]
     data
   })
   
