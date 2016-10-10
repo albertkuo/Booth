@@ -25,10 +25,14 @@ setcolorder(brands_RMS, c("brand_code_uc","brand_descr",
                           "department_descr","category","rev_sum"))
 saveRDS(brands_RMS, '~/Booth/string_matching/string_matching_app/data/brands_RMS.rds')
 ## Save prod data
+prod_meta = prod_meta[,.(rev_sum = sum(revenue_RMS)),
+                      by=c("upc_descr","brand_code_uc","brand_descr",
+                           "product_module_descr","product_group_descr",
+                           "department_descr")]
 prod_meta = prod_meta[,.(upc_descr, 
                          brand_code_uc, brand_descr,
                          product_module_descr, product_group_descr,
-                         department_descr)]
+                         department_descr,rev_sum)]
 setkey(prod_meta)
 prod_meta = unique(prod_meta)
 saveRDS(prod_meta, '~/Booth/string_matching/string_matching_app/data/prod_meta.rds')
