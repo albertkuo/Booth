@@ -51,6 +51,11 @@ brands_unique_ad = merge(brands_unique_ad, pccindusdict,
 brands_unique_ad = brands_unique_ad[,.(BrandCode,BrandVariant,BrandDesc,ProductDesc,
                                        PCCSubDesc,PCCMajDesc,PCCIndusDesc,
                                        category,spend_sum)]
+# Have to convert to ASCII for searching to work in the app
+brands_unique_ad = as.data.frame(brands_unique_ad)
+brands_unique_ad[,sapply(brands_unique_ad,is.character)] <- sapply(
+  brands_unique_ad[,sapply(brands_unique_ad,is.character)],
+  iconv,"UTF-8","ASCII",sub="")
 saveRDS(brands_unique_ad, '~/Booth/string_matching/string_matching_app/data/brands_ad.rds')
 brandnames_ad = brands_unique_ad$BrandDesc # or use BrandVariant?
 

@@ -20,6 +20,7 @@ brands_RMS$rev_sum = sapply(brands_RMS$rev_sum, round)
 brandnames_RMS = unique(brands_RMS$brand_descr)
 brands_ad = readRDS('./data/brands_ad.rds')
 brandnames_ad = brands_ad$BrandVariant
+brandnames_adquery = unique(brandnames_ad)
 top_prod_meta = readRDS('./data/prod_meta.rds')
 top_prod_meta$rev_sum = sapply(top_prod_meta$rev_sum, round)
 
@@ -84,12 +85,25 @@ ui <- shinyUI(
     fluidRow(
       column(12, align="left", h3("Step 3: Label matches from the candidate brands below and save.", style="color:slategray"))
     ),
+    
+    fluidRow(
+      column(12, align="center",
+             actionButton("toggleAdditionalQuery", "Manually add Ad Intel brands to candidate brands table",
+                          class="btn-default"))
+    ),
+    shinyjs::hidden(
+      div(id = "additional_query",
+          DT::dataTableOutput("ad_querytable")
+      )
+    ),
+    
+    br(),
     fluidRow(
       column(12, align="center",
              downloadButton('downloadData', 'Save Matches', class="btn-primary"))
     ),
-    
     br(),
+    
     p("Displaying candidate brands from 
     Ad Intel, sorted by spend by default. If no similar candidates are found, all
       brands in the same category are displayed for you to search manually.",
@@ -105,14 +119,19 @@ ui <- shinyUI(
 ## Server ##
 ############
 server <- shinyServer(function(input, output, session) {
+  ##======= Data Structures =======##
+  # A list to store reactive values, i.e. the editable ad candidates table
   revals <- reactiveValues()
   
+  # Table of all RMS brands if no search term entered
+  # Otherwise, table of RMS brands that match query
   querydata <- reactive({
     data <- brands_RMS[grep(input$brand_query,brands_RMS$brand_descr),]
     data <- data[order(data$rev_sum,decreasing=T),]
     data
   })
   
+  # Selected row from querydata
   queryrow <- reactive({
     s = input$querytable_rows_selected
     querydata <- querydata()
@@ -120,6 +139,8 @@ server <- shinyServer(function(input, output, session) {
     queryrow
   })
   
+  # Table of candidate brands from Ad Intel,
+  # consisting of algorithm's matches and manually selected brands from ad_querydata
   ad_candidates <- reactive({
     queryrow <- queryrow()
     data = queryrow
@@ -140,13 +161,29 @@ server <- shinyServer(function(input, output, session) {
         data <- brands_ad[brands_ad$category==queryrow$category,]
         match_tier = factor(rep(0,nrow(data)), levels = c(0:4), ordered = TRUE)
         data = cbind(match_tier, data)
-      }
+        }
       data <- data[order(data$spend_sum,decreasing=T),]
+      # Add query rows from Ad Intel
+      ad_querydata <- ad_querydata()
+      ad_queryrows <- ad_querydata[input$ad_querytable_rows_selected,]
+      if(nrow(ad_queryrows)>0){
+        match_tier = factor(rep(4,nrow(ad_queryrows)), levels = c(0:4), ordered = TRUE)
+        ad_queryrows = cbind(match_tier, ad_queryrows)
+        data <- rbind(data, ad_queryrows)
+      }
     }
     revals[["hot"]] = data
     data
   })
   
+  # Table consisting of all brands from Ad Intel
+  ad_querydata <- reactive({
+    data <- queryrow() # Just a hack to make sure data refreshes
+    data <- brands_ad[order(brands_ad$spend_sum,decreasing=T),]
+    data
+  })
+  
+  # Table consisting of labeled matches
   save_ad_matches <- reactive({
     ad_matches = revals$hot
     ad_matches = ad_matches[ad_matches$match_tier!=0,]
@@ -156,6 +193,7 @@ server <- shinyServer(function(input, output, session) {
     save_ad_matches
   })
   
+  ##======= Functions =======##
   # RMS brand query
   output$querytable <- DT::renderDataTable(
     querydata(), rownames=F, selection='single',
@@ -167,7 +205,7 @@ server <- shinyServer(function(input, output, session) {
     queryrow(), rownames=F, selection='none',
   options = list(sDom  = '<"top">rt<"bottom">'))
   
-  # Hide/show section
+  # Hide/show section of products and similar brands
   shinyjs::onclick("toggleAdditional",
                    shinyjs::toggle(id = "additional", anim = TRUE))
   
@@ -179,7 +217,7 @@ server <- shinyServer(function(input, output, session) {
     data <- data[order(data$rev_sum,decreasing=T),]
     data
   }, rownames=F, selection='none', caption = 'Displaying all RMS products in the selected brand.',
-  options = list(sDom  = '<"top">rt<"bottom">ip')))
+  options = list(sDom  = '<"top">frt<"bottom">ip')))
   
   # Similar brands from RMS
   output$RMS_candidates <- DT::renderDataTable(DT::datatable({
@@ -196,7 +234,17 @@ server <- shinyServer(function(input, output, session) {
     data
   }, rownames=F, selection='none', 
   caption = 'Displaying similar RMS brands, sorted by revenue by default.',
-  options = list(sDom  = '<"top">rt<"bottom">ip')))
+  options = list(sDom  = '<"top">frt<"bottom">ip')))
+  
+  # Hide/show section of Ad Intel brand query
+  shinyjs::onclick("toggleAdditionalQuery",
+                   shinyjs::toggle(id = "additional_query", anim = TRUE))
+  
+  # Ad Intel brand query
+  output$ad_querytable <- DT::renderDataTable(
+    ad_querydata(), rownames=F,
+    caption = 'The following brands are sorted by spend by default.',
+    options = list(sDom  = '<"top">frt<"bottom">ip'))
   
   # Candidate brands from Ad Intel
   output$hot <- renderD3tf({
