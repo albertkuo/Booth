@@ -24,6 +24,28 @@ setcolorder(brands_RMS, c("brand_code_uc","brand_descr",
                           "product_module_descr","product_group_descr",
                           "department_descr","category","rev_sum"))
 saveRDS(brands_RMS, '~/Booth/string_matching/string_matching_app/data/brands_RMS.rds')
+## Save union of top brands per module per year (top competitors)
+top_brands = prod_meta[,.(rev_sum_year = sum(revenue_RMS)),
+                      by=c("brand_code_uc","brand_descr","product_module_descr",
+                           "product_group_descr","department_descr","year")]
+module_sums = prod_meta[,.(module_sum = sum(revenue_RMS)),
+                        by = c("product_module_descr","year")]
+top_brands = merge(top_brands, module_sums, by=c("product_module_descr","year"))
+top_brands[,prop_revenue:=rev_sum_year/module_sum]
+library(dplyr)
+top_brands = top_brands %>% 
+                group_by(product_module_descr, year) %>% 
+                arrange(desc(prop_revenue)) %>% 
+                mutate(cum_sum_prop = cumsum(prop_revenue)) %>%
+                filter(cum_sum_prop < .8 | (cum_sum_prop > .8 & (cum_sum_prop-prop_revenue) < .8)) %>%
+                group_by(brand_descr, add=TRUE) %>% mutate(prop_revenue_avg = mean(prop_revenue)) %>%
+                group_by(brand_descr, product_module_descr) %>% mutate(rev_sum = sum(rev_sum_year)) %>%
+                group_by(product_module_descr) %>% distinct(brand_descr, .keep_all = TRUE) 
+top_brands = merge(top_brands, productgroupdict, by="product_group_descr", all.x=T)
+top_brands = top_brands[c("brand_code_uc","brand_descr","product_module_descr",
+                          "product_group_descr","department_descr","category",
+                          "rev_sum", "prop_revenue_avg")]
+saveRDS(top_brands, '~/Booth/string_matching/string_matching_app/data/top_brands.rds')
 ## Save prod data
 prod_meta = prod_meta[,.(rev_sum = sum(revenue_RMS)),
                       by=c("upc_descr","brand_code_uc","brand_descr",
@@ -57,6 +79,7 @@ brands_unique_ad[,sapply(brands_unique_ad,is.character)] <- sapply(
   brands_unique_ad[,sapply(brands_unique_ad,is.character)],
   iconv,"UTF-8","ASCII",sub="")
 saveRDS(brands_unique_ad, '~/Booth/string_matching/string_matching_app/data/brands_ad.rds')
+setDT(brands_unique_ad)
 brandnames_ad = brands_unique_ad$BrandDesc # or use BrandVariant?
 
 # Fuzzy string matching with agrep

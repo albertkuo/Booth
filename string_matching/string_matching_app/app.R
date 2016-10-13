@@ -23,6 +23,9 @@ brandnames_ad = brands_ad$BrandVariant
 brandnames_adquery = unique(brandnames_ad)
 top_prod_meta = readRDS('./data/prod_meta.rds')
 top_prod_meta$rev_sum = sapply(top_prod_meta$rev_sum, round)
+competitors_RMS = readRDS('./data/top_brands.rds')
+competitors_RMS$rev_sum = sapply(competitors_RMS$rev_sum,round)
+competitors_RMS$prop_revenue_avg = sapply(competitors_RMS$prop_revenue_avg, round, 3)
 
 ########
 ## UI ##
@@ -55,10 +58,21 @@ ui <- shinyUI(
       DT::dataTableOutput("querytable")
     ),
     
+    fluidRow(
+      column(12, align="center",
+             actionButton("toggleCompetitors", "Show/hide competitor brands",
+                          class="btn-default"))
+    ),
+    shinyjs::hidden(
+      column(12, align="left", h3("or click on a competitor brand you wish to match.", style="color:slategray")),
+      div(id = "additional_competitors",
+          DT::dataTableOutput("competitors")
+      )
+    ),
+    
     br(),
     fluidRow(
       column(12, align="center", h3(em("You have selected the following RMS brand.", style="color:steelblue")))
-    
       ),
     fluidRow(
       DT::dataTableOutput("selected_row")
@@ -131,11 +145,32 @@ server <- shinyServer(function(input, output, session) {
     data
   })
   
-  # Selected row from querydata
-  queryrow <- reactive({
+  # Table of competitors
+  competitorsdata <- reactive({
     s = input$querytable_rows_selected
     querydata <- querydata()
     queryrow <- querydata[s,]
+
+    # Select competitors from the same module
+    data <- competitors_RMS[competitors_RMS$product_module_descr==queryrow$product_module_descr,]
+    data <- data[order(data$rev_sum,decreasing=T),]
+    data
+  })
+  
+  # Selected row from querydata
+  queryrow <- reactive({
+    # Query brand selection
+    s = input$querytable_rows_selected
+    querydata <- querydata()
+    queryrow <- querydata[s,]
+    
+    
+    # Competitor brand selection
+    c = input$competitors_rows_selected
+    if(!is.null(c)){
+      competitors = competitorsdata()
+      queryrow <- competitors[c,]
+    }
     queryrow
   })
   
@@ -154,14 +189,17 @@ server <- shinyServer(function(input, output, session) {
       data <- data[data$category==queryrow$category,]
       if(nrow(data)>0){
         match_tier = factor(rep(4,nrow(data)), levels = c(0:4), ordered = TRUE)
+        if(nrow(data)>30){
+          match_tier = factor(rep(0,nrow(data)), levels = c(0:4), ordered = TRUE)
+        }
         data = cbind(match_tier, data)
       }
       # If no matches, return entire dataset in the same category
-        else {
-        data <- brands_ad[brands_ad$category==queryrow$category,]
-        match_tier = factor(rep(0,nrow(data)), levels = c(0:4), ordered = TRUE)
-        data = cbind(match_tier, data)
-        }
+      else {
+      data <- brands_ad[brands_ad$category==queryrow$category,]
+      match_tier = factor(rep(0,nrow(data)), levels = c(0:4), ordered = TRUE)
+      data = cbind(match_tier, data)
+      }
       data <- data[order(data$spend_sum,decreasing=T),]
       # Add query rows from Ad Intel
       ad_querydata <- ad_querydata()
@@ -199,6 +237,16 @@ server <- shinyServer(function(input, output, session) {
     querydata(), rownames=F, selection='single',
     caption = 'The following brands are sorted by revenue by default.',
   options = list(sDom  = '<"top">rt<"bottom">ip'))
+  
+  # Hide/show section of competitor brands
+  shinyjs::onclick("toggleCompetitors",
+                   shinyjs::toggle(id = "additional_competitors", anim = TRUE))
+  
+  # Competitors
+  output$competitors <- DT::renderDataTable(
+    competitorsdata(), rownames=F, selection='single',
+    caption = 'The following brands are sorted by revenue by default.',
+    options = list(sDom  = '<"top">frt<"bottom">ip'))
   
   # Selected RMS brand
   output$selected_row <- DT::renderDataTable(
