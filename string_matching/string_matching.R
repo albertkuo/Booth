@@ -73,6 +73,15 @@ brands_unique_ad = merge(brands_unique_ad, pccindusdict,
 brands_unique_ad = brands_unique_ad[,.(BrandCode,BrandVariant,BrandDesc,ProductDesc,
                                        PCCSubDesc,PCCMajDesc,PCCIndusDesc,
                                        category,spend_sum)]
+PCC_sums = brands_unique_ad[,.(product_sum = sum(spend_sum)),
+                               by=c("ProductDesc")]
+brands_unique_ad = merge(brands_unique_ad, PCC_sums, by=c("ProductDesc"))
+brands_unique_ad[,prop_revenue:=spend_sum/product_sum]
+brands_unique_ad = brands_unique_ad[,c("BrandCode","BrandVariant","BrandDesc",
+                                      "ProductDesc","PCCSubDesc","PCCMajDesc",
+                                      "PCCIndusDesc","category","spend_sum","prop_revenue"),
+                                    with=F]
+brands_unique_ad[,prop_revenue:=round(prop_revenue,3)]
 # Have to convert to ASCII for searching to work in the app
 brands_unique_ad = as.data.frame(brands_unique_ad)
 brands_unique_ad[,sapply(brands_unique_ad,is.character)] <- sapply(
