@@ -6,6 +6,8 @@
 #
 #    http://shiny.rstudio.com/
 #
+# library(rsconnect)
+# rsconnect::deployApp('~/Booth/string_matching/string_matching_app/')
 
 library(bit64)
 library(DT)

@@ -159,6 +159,7 @@ for(i in 1:length(monthpath.strings)){
   imp_groups = c("NT","SP","SR")
   
   for(j in 1:length(occ_groups)){
+    # Spot occurrences in non-People markets need to be joined to sweep month impressions
     impfilename = list.files(pattern = paste0("IMPC.*?",imp_groups[j]), path = monthpath.string)
     imp = read_imp(monthpath.string, impfilename)
     
