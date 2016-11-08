@@ -1,7 +1,7 @@
 # build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: September 26, 2016
+# Date last modified: November 8, 2016
 #
 # This is an R script that will build R Formatted Ad Intel Files
 # using Nielsen_Raw tsv formatted files.
@@ -201,7 +201,7 @@ for(i in 1:length(monthpath.strings)){
         prodoccimpue = uehisp[prodoccimp, roll=TRUE]
       } else if(j==LOCAL_TV){
         keys_imp = c("PeriodYearMonth","DistributorID","DayOfWeek","TimeIntervalNumber")
-        prodoccimp = merge(prodocc, imp, by=keys_imp, allow.cartesian=T)
+        prodoccimp = merge(prodocc, imp, by=keys_imp, allow.cartesian=T, all.x=T)
         
         prodoccimp[,rollDate:=AdDate]
         ue[,rollDate:=StartDate]
@@ -231,6 +231,7 @@ for(i in 1:length(monthpath.strings)){
         
         # Aggregate sums by id_cols and cast (opposite of melt) data
         prodoccimpue[, GRP:=(imp_total/ue_total)*100]
+        prodoccimpue$GRP[is.na(prodoccimpue$GRP)] = 0
         prodoccimpue[, Week:=format(AdDate,format="%W/%Y")]
         prodoccimpue[, Count:=1]
         prodoccimpue = prodoccimpue[,.(GRP_sum = sum(GRP), Spend_sum = sum(Spend),
