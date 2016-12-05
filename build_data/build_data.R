@@ -1,7 +1,7 @@
 # build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: November 8, 2016
+# Date last modified: December 5, 2016
 #
 # This is an R script that will build R Formatted Ad Intel Files
 # using Nielsen_Raw tsv formatted files.
@@ -10,6 +10,7 @@
 ## Set-up =========
 ## ================
 library(data.table)
+library(bit64)
 library(foreach)
 library(doParallel)
 
@@ -136,6 +137,38 @@ change_name <- function(str){
   return(str)
 }
 
+# Impute missing impressions for Spot TV ---------- 
+impute_table = data.table(month = c(1,3,4,6,8,9,10,12),
+                          month1 = c("02","02","02","05","07","07","07","11"),
+                          month2 = c("","05","05","07","11","11","11",""),
+                          weight1 = c(1,2/3,1/3,1/2,3/4,1/2,1/4,1),
+                          weight2 = c(0,1/3,2/3,1/2,1/4,1/2,3/4,0))
+
+impute_imp <- function(prodocc, monthpath.string){
+  # Exclude PeriodYearMonth from keys because that forces us to use Nielsen's imputation method
+  keys_imp = c("DistributorID","DayOfWeek","TimeIntervalNumber")
+  identifier_cols = names(prodocc)
+  month_int = strtoi(substring(basename(monthpath.string), 5), base=10)
+  params = impute_table[month==month_int]
+  substring(monthpath.string, nchar(monthpath.string)-1) = params$month1
+  impfilename = list.files(pattern = "IMPC.*?SP", path = monthpath.string)
+  imp = read_imp(monthpath.string, impfilename)
+  imp[, c("MediaTypeID","PeriodYearMonth"):=NULL]
+  prodoccimp = merge(prodocc, imp, by=keys_imp, allow.cartesian=T, all.x=T)
+  if(params$weight2!=0){
+    substring(monthpath.string, nchar(monthpath.string)-1) = params$month2
+    impfilename = list.files(pattern = "IMPC.*?SP", path = monthpath.string)
+    imp = read_imp(monthpath.string, impfilename)
+    imp = imp[, append(keys_imp, "TV_HH"), with=F]
+    names(imp) = append(keys_imp, "TV_HH_2")
+    prodoccimp2 = merge(prodocc, imp, by=keys_imp, allow.cartesian=T, all.x=T)
+    prodoccimp = merge(prodoccimp, prodoccimp2, by=identifier_cols)
+    prodoccimp[, imp_total:=params$weight1*TV_HH+params$weight2*TV_HH_2]
+    prodoccimp[, TV_HH_2:=NULL]
+  }
+  return(prodoccimp)
+}
+
 ## =================================================================
 ## Traverse through year and month directories in parallel =========
 ## =================================================================
@@ -159,14 +192,13 @@ for(i in 1:length(monthpath.strings)){
   imp_groups = c("NT","SP","SR")
   
   for(j in 1:length(occ_groups)){
-    # Spot occurrences in non-People markets need to be joined to sweep month impressions
     impfilename = list.files(pattern = paste0("IMPC.*?",imp_groups[j]), path = monthpath.string)
     imp = read_imp(monthpath.string, impfilename)
     
     uefilename = list.files(pattern = paste0("UE.*?",imp_groups[j]), path = uepath.string)
     ue = read_ue(uepath.string, uefilename)
     
-    occfilenames = list.files(pattern = paste0("OCC.*?",occ_groups[j]),path = monthpath.string)
+    occfilenames = list.files(pattern = paste0("OCC.*?",occ_groups[j]), path = monthpath.string)
     for(occfilename in occfilenames){
       prodocc = join_occ_prod(monthpath.string, occfilename, product)
       
@@ -201,7 +233,15 @@ for(i in 1:length(monthpath.strings)){
         prodoccimpue = uehisp[prodoccimp, roll=TRUE]
       } else if(j==LOCAL_TV){
         keys_imp = c("PeriodYearMonth","DistributorID","DayOfWeek","TimeIntervalNumber")
-        prodoccimp = merge(prodocc, imp, by=keys_imp, allow.cartesian=T, all.x=T)
+        prodoccimp = merge(prodocc, imp, by=keys_imp, allow.cartesian=T)
+      
+        #Impute by sending orphan occurrences to a function
+        impute_prodoccimp = prodocc[PeriodYearMonth!=basename(monthpath.string)]
+        if(nrow(impute_prodoccimp)>0){
+          prodoccimp2 = impute_imp(impute_prodoccimp, monthpath.string)
+          print(nrow(prodoccimp2))
+          prodoccimp = rbind(prodoccimp, prodoccimp2, fill=T)
+        }
         
         prodoccimp[,rollDate:=AdDate]
         ue[,rollDate:=StartDate]
