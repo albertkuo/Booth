@@ -35,8 +35,7 @@ output_dir = '/grpshares/hitsch_shapiro_ads/data/RMS/Brand-Aggregates'
 ## Helper functions -----------
 # Function to fill in NA prices
 Fill.NA.Prices <- function(DT){
-  # Is deep copy necessary?
-  # move = copy(DT)
+  move = copy(DT) # Is this necessary?
   vars = c("upc", "upc_ver_uc_corrected", "store_code_uc", "week_end", "base_price")
   setkeyv(move, vars[-5])
   inds = match(vars, colnames(move))
@@ -126,19 +125,24 @@ brand_upcs = function(brand_code, module_code){
 }
 
 #foreach(k = length(topbrandcodes):1) %dopar% { 
-for(k in 771:1){
+for(k in 782:1){ # issue with 783
+#for(k in 1:1){
   print(k)
   brand_code = topbrandcodes[[k]] # Bud light = 520795, Coca-Cola R = 531429
   module_code = topmodulecodes[[k]] # Bud light = 5010, Coca-Cola = 1484
+  #brand_code = 536746
+  #module_code = 4100
   print(brand_code)
+  print(module_code)
   
+  print("Reading UPC files")
   upc_filenames = paste(source_dir, module_code, brand_upcs(brand_code, module_code), sep='/')
   upc_files = list()
   for(i in 1:length(upc_filenames)){
     filename = upc_filenames[[i]]
     if(file.exists(filename)){
       load(filename)
-      upc_files[[i]] = move
+      upc_files[[i]] = copy(move)
     } else {
       #print(paste(basename(filename), "doesn't exist."))
     }
@@ -147,40 +151,42 @@ for(k in 771:1){
   print("Bind product files...")
   DT = rbindlist(upc_files)
   print(nrow(DT))
-  print("Fill NA...")
-  DT = Fill.NA.Prices(DT)
-  print("Begin aggregation...")
-  row_DT = nrow(DT)
-  DT = merge(DT, products, by=c("upc","upc_ver_uc_corrected"), allow.cartesian=T)
-  if(nrow(DT)>row_DT){
-    # Still don't know why this happens, unless there are duplicates in the products table
-    # which there are not 
-    print("CARTESIAN JOIN!-------------------------------")
-    print(table(DT$brand_code_uc_corrected))
-  }
-  print(unique(DT$brand_code_uc_corrected))
-  # Some products belong to multiple brands when upc_ver changes? 
-  DT = DT[brand_code_uc_corrected==brand_code]
-  print(nrow(DT))
-  aggregated = brandAggregator(DT, "total revenue", 0.05)
-  #print(head(aggregated))
-  #print(nrow(aggregated))
-  #print(summary(aggregated$base_price))
-  #print(summary(aggregated$price))
-  if(nrow(aggregated)>0){
-    print("Saving...")
-    dir.create(file.path(output_dir, toString(module_code)), showWarnings = FALSE)
-    saveRDS(aggregated, file.path(output_dir, toString(module_code), paste0(toString(brand_code),'.rds')))
+  if(nrow(DT)>0){
+    print("Fill NA...")
+    DT = Fill.NA.Prices(DT)
+    row_DT = nrow(DT)
+    DT = merge(DT, products, by=c("upc","upc_ver_uc_corrected"), allow.cartesian=T)
+    if(nrow(DT)>row_DT){
+      # Still don't know why this happens, unless there are duplicates in the products table
+      # which there are not 
+      print("CARTESIAN JOIN!-------------------------------")
+      print(table(DT$brand_code_uc_corrected))
+    }
+    # Some products belong to multiple brands when upc_ver changes? 
+    DT = DT[brand_code_uc_corrected==brand_code]
+    print(nrow(DT))
+    print("Begin aggregation...")
+    aggregated = brandAggregator(DT, "total revenue", 0.05)
+    print(head(aggregated))
+    #print(nrow(aggregated))
+    #print(summary(aggregated$base_price))
+    #print(summary(aggregated$price))
+    if(nrow(aggregated)>0){
+      print("Saving...")
+      dir.create(file.path(output_dir, toString(module_code)), showWarnings = FALSE)
+      saveRDS(aggregated, file.path(output_dir, toString(module_code), paste0(toString(brand_code),'.rds')))
+    } else {
+      print("Skipping saving -- empty data table because processed=F for all values...")
+    }
   } else {
-    print("Skipping saving -- empty data table because processed=F for all values...")
+    print("Skipping aggregating -- no non-other upc files for brand")
   }
   gc()
-  
 }
 
 if(!run_grid){
   load('Booth/price_aggregation/Old_Brand_Aggregate.RData')
-  budlight = test_data[brand_group_code == 20929]
+  budlight = test_data[brand_group_code==20929]
   cocacola = test_data[brand_group_code==30886]
   budlight2 = readRDS('Booth/price_aggregation/aggregated_brands2.rds')
   cocacola2 = readRDS('Booth/price_aggregation/aggregated_brands.rds')
