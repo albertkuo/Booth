@@ -274,8 +274,8 @@ for(i in 1:length(monthpath.strings)){
         prodoccimpue$GRP[is.na(prodoccimpue$GRP)] = 0
         prodoccimpue[, Week:=format(AdDate,format="%W/%Y")]
         prodoccimpue[, Count:=1]
-        prodoccimpue = prodoccimpue[,.(GRP_sum = sum(GRP), Spend_sum = sum(Spend),
-                       Duration_sum = sum(Duration), Number = sum(Count)),
+        prodoccimpue = prodoccimpue[,.(GRP_sum = sum(GRP, na.rm=T), Spend_sum = sum(Spend, na.rm=T),
+                       Duration_sum = sum(Duration, na.rm=T), Number = sum(Count, na.rm=T)),
                     by=c(id_cols,"MediaTypeDesc","DataStreamID")]
         # Use fun=mean because all the values are the same
         prodoccimpue = dcast(prodoccimpue, as.formula(paste0(paste(c(id_cols,"Spend_sum","Duration_sum","Number"), collapse="+"),
@@ -287,7 +287,7 @@ for(i in 1:length(monthpath.strings)){
                  paste(mediatypestr,c("Spend", "Duration", "Number")))
         names(prodoccimpue) = sapply(names(prodoccimpue), change_name)
         if(exists("aggregated")){
-          aggregated = merge(aggregated,prodoccimpue,by=id_cols,all = TRUE)
+          aggregated = merge(aggregated,prodoccimpue,by=id_cols, all = TRUE)
         } else {aggregated = prodoccimpue}
       }
     }
@@ -310,7 +310,7 @@ for(i in 1:length(monthpath.strings)){
         mediatypestr = prodocc$MediaTypeDesc[1]
         
         if(j==imp2plus){
-          prodocc = prodocc[,.(imp_sum = sum(Imp2Plus), Spend_sum = sum(Spend)),
+          prodocc = prodocc[,.(imp_sum = sum(Imp2Plus, na.rm=T), Spend_sum = sum(Spend, na.rm=T)),
                       by=c(id_cols, "MediaTypeDesc")]
           prodocc = dcast(prodocc, as.formula(paste0(paste(c(id_cols,"Spend_sum"),collapse="+"),"~ MediaTypeDesc")),
                        fun=mean, value.var=c("imp_sum"))
