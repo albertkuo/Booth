@@ -3,6 +3,7 @@
 ## ================
 # Read Ad Intel files and extract data corresponding to brands found in Brand Aggregates
 # Save brand extracts in aggregated_extracts to be used later in merge_RMS_Ad.R
+library(data.table)
 
 RMS_input_dir = "/grpshares/hitsch_shapiro_ads/data/RMS/Brand-Aggregates"
 ad_output_dir = "/grpshares/hitsch_shapiro_ads/data/Ad_Intel"
@@ -11,12 +12,16 @@ output_dir = "/grpshares/hitsch_shapiro_ads/data/RMS_Ad/"
 #brand_code = 518917
 RMS_filenames = list.files(RMS_input_dir, full.names=T, recursive=T)
 brand_codes = list()
+dir_names = list()
 for(i in 1:length(RMS_filenames)){
   RMS_filename = RMS_filenames[[i]]
   brand_codes[[i]] = sub(pattern = "(.*?)\\..*$", replacement = "\\1", basename(RMS_filename))
-  dir_names[[i]] = sub('.*/(.*)','\\1', dirname(RMS_input_dir))
+  dir_names[[i]] = sub('.*/(.*)','\\1', dirname(RMS_filename))
 }
 string_matches = fread('~/merge_metadata/string_matches.csv')
+
+# Parameters
+datastream = 2 # (need to implement) Datastream to use for National TV, note that Local TV only has Datastream = 3
 
 prod_cols = c("BrandDesc","BrandVariant",
               "AdvParentCode","AdvParentDesc","AdvSubsidCode","AdvSubsidDesc",
@@ -30,9 +35,10 @@ for(i in 1:length(ad_filenames)){
   ad_data_full[, prod_cols:=NULL] #ignore warning here, R think prod_cols is a new column name
 
   for(j in 1:length(brand_codes)){
-    dir_name = dir_names[[j]]
     RMS_brand_code = brand_codes[[j]]
-    print(RMS_brand_code)
+    dir_name = dir_names[[j]]
+    #print(RMS_brand_code)
+    #print(dir_name)
     brand_matches = unique(string_matches[brand_code_uc==RMS_brand_code &
                                             product_module_code==dir_name]$BrandCode)
     if(length(brand_matches)>0){
@@ -40,8 +46,8 @@ for(i in 1:length(ad_filenames)){
 
       if(nrow(ad_data)>0){
         ad_data[, National_GRP:=rowSums(.SD, na.rm=T),
-                .SDcols = c("Network TV GRP 2","Syndicated TV GRP 2","Cable TV GRP 2",
-                            "Spanish Language Cable TV GRP 2", "Spanish Language Network TV GRP 2")]
+                .SDcols = paste(c("Network TV GRP","Syndicated TV GRP","Cable TV GRP",
+                                  "Spanish Language Cable TV GRP", "Spanish Language Network TV GRP"), datastream)]
         ad_data[, Local_GRP:=rowSums(.SD, na.rm=T),
                 .SDcols = c("Network Clearance Spot TV GRP 3", "Syndicated Clearance Spot TV GRP 3",
                             "Spot TV GRP 3")]
@@ -64,6 +70,8 @@ for(i in 1:length(ad_filenames)){
         write.csv(ad_data, paste0(file.path(ad_output_dir, "aggregated_extracts", toString(dir_name)), "/",
                                   RMS_brand_code, "_", toString(i), ".csv"), row.names=F)
       }
+    } else {
+      #print("No string matches")
     }
   }
 }
