@@ -1,7 +1,7 @@
 # merge_RMS_Ad.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: December 15, 2016
+# Date last modified: December 16, 2016
 #
 # This is an R script that merges RMS and Ad Intel based on brand, market, week
 
@@ -56,7 +56,7 @@ store_info = unique(store_info)
 # Set parameters
 weight = 0.5 # Weight for ad stock
 window = 52 # Window of T weeks for ad stock
-datastream = 2 # (need to implement) Datastream to use for National TV, note that Local TV only has Datastream = 3
+associated_brands = F # Indicator for including level 4 matches
 
 ## ================
 ## RMS ============
@@ -71,36 +71,39 @@ for(i in 1:length(RMS_filenames)){
   RMS_example[, year:=year(week_end)]
   RMS_example[, Week:=format(week_end,format="%W/%Y")]
   RMS_example[, product_module_code:=dir_name]
-  
+
   # Join to zip/DMA matching
   RMS_example[, rollyear:=year]
   setkey(RMS_example, store_code_uc, rollyear)
-  RMS_example = store_info[RMS_example, roll=T, rollends=c(T,T)] 
+  RMS_example = store_info[RMS_example, roll=T, rollends=c(T,T)]
   RMS_example[, c("rollyear", "Year", "DATE"):=NULL]
   RMS_example = merge(RMS_example, stores, by=c("store_code_uc", "year"))
   RMS_example = merge(RMS_example, zipborders, by.x=c("ZIP"), by.y=c("zip"), allow.cartesian=T)
   RMS_example[, dma_code:=dma_code-400] # match with Ad Intel code format
-  
+
   # Join to brand matching
   # Note that if there are no string matches, we get an empty data frame
-  RMS_example = merge(RMS_example, string_matches, by.x=c("brand_code_uc_corrected", "product_module_code"), 
+  RMS_example = merge(RMS_example, string_matches, by.x=c("brand_code_uc_corrected", "product_module_code"),
                             by.y=c("brand_code_uc", "product_module_code"), allow.cartesian=T)
+  if(!associated_brands){
+    RMS_example = RMS_example[match_tier!=4]
+  }
 
   # Read in ad files
   print("Reading in ad files...")
-  RMS_ad_filenames = list.files(file.path(ad_output_dir, "aggregated_extracts", toString(dir_name)), 
+  RMS_ad_filenames = list.files(file.path(ad_output_dir, "aggregated_extracts", toString(dir_name)),
                                 pattern=RMS_brand_code, full.names=T)
   ad_datalist = lapply(RMS_ad_filenames, fread)
-  Ad_example = rbindlist(ad_datalist) 
-  
+  Ad_example = rbindlist(ad_datalist)
+
   if(nrow(Ad_example)>0){
     # Re-accumulate by week to fix month cross-over values
-    Ad_example = Ad_example[,.(National_GRP = as.numeric(sum(National_GRP, na.rm=T)), 
+    Ad_example = Ad_example[,.(National_GRP = as.numeric(sum(National_GRP, na.rm=T)),
                                Local_GRP = as.numeric(sum(Local_GRP, na.rm=T)),
                                National_occ = as.numeric(sum(National_occ, na.rm=T)),
                                Local_occ = as.numeric(sum(Local_occ, na.rm=T))),
                                by=c("BrandCode", "Week", "MarketCode")]
-    
+
     # Fill in missing rows
     print("Filling in missing rows...")
     #print(tail(Ad_example))
@@ -110,7 +113,7 @@ for(i in 1:length(RMS_filenames)){
     Ad_example = Ad_example[CJ(unique(BrandCode), unique(MarketCode), seq(min(WeekDate), max(WeekDate), by=7))]
     #print(tail(Ad_example))
     print(nrow(Ad_example))
-    
+
     # Calculate Ad stock and Total values
     # Assumption that all weeks need to be filled for correct weight
     # Check that order is by weeks
@@ -134,20 +137,19 @@ for(i in 1:length(RMS_filenames)){
                                 "National_GRP", "Local_GRP", "National_occ", "Local_occ"))
       Ad_example = rbind(simulated, Ad_example)
     }
-    
+
     # Calculate Ad stock using cumsum
     Ad_example[, `:=`(National_GRP = cumsum(ifelse(is.na(National_GRP), 0, National_GRP)*weight^(rev(seq(.N))-1))/
-                                     (weight^(rev(seq(.N))-1)), 
+                                     (weight^(rev(seq(.N))-1)),
                       Local_GRP = cumsum(ifelse(is.na(Local_GRP), 0, Local_GRP)*weight^(rev(seq(.N))-1))/
-                                  (weight^(rev(seq(.N))-1)), 
+                                  (weight^(rev(seq(.N))-1)),
                       National_occ = cumsum(ifelse(is.na(National_occ), 0, National_occ)*weight^(rev(seq(.N))-1))/
                                      (weight^(rev(seq(.N))-1)),
                       Local_occ = cumsum(ifelse(is.na(Local_occ), 0, Local_occ)*weight^(rev(seq(.N))-1))/
                                   (weight^(rev(seq(.N))-1))),
                   by=c("BrandCode", "MarketCode")]
-    print(tail(Ad_example))
 
-    # Implement window=T by subtracting previous values 
+    # Implement window=T by subtracting previous values
     # Under option (a), this will leave the first 52 rows as NA
     # Under option (b), this will leave simulated data as NA
     Ad_example[, `:=`(National_GRP = National_GRP - shift(National_GRP, window, type="lag")*weight^window,
@@ -155,34 +157,33 @@ for(i in 1:length(RMS_filenames)){
                       National_occ = National_occ - shift(National_occ, window, type="lag")*weight^window,
                       Local_occ = Local_occ - shift(Local_occ, window, type="lag")*weight^window),
                       by=c("BrandCode", "MarketCode")]
-    print(tail(Ad_example))
     Ad_example[, Total_GRP:=rowSums(.SD, na.rm=T), .SDcols=c("National_GRP", "Local_GRP")]
     Ad_example[, Total_occ:=rowSums(.SD, na.rm=T), .SDcols=c("National_occ", "Local_occ")]
     Ad_example[, Week:=format(WeekDate,format="%W/%Y")]
     Ad_example[, WeekDate:=NULL]
-      
+
     # Join RMS to Ad Intel months
     print("Joining RMS to Ad Intel...")
     print(nrow(RMS_example))
     output = merge(RMS_example, Ad_example, by.x=c("BrandCode", "dma_code", "Week"),
                    by.y=c("BrandCode", "MarketCode", "Week"))
     print(nrow(output))
-    
-    # Sum up by matchtier/MarketCode/Week
+
+    # Sum up by Brand/Store/Week
     print("Aggregating...")
     keep_cols = c("brand_code_uc_corrected", "product_module_code", "store_code_uc", "STR NUM",
-                "STREET", "CITY", "ST", "ZIP", "fips_state_code", "fips_county_code", "fips", 
+                "STREET", "CITY", "ST", "ZIP", "fips_state_code", "fips_county_code", "fips",
                 "dma_code", "on_border", "bordername", "week_end", "Week", "price", "units", "base_price", "promo_percentage",
                 "promo_dummy")
-    output = output[,.(National_GRP = sum(National_GRP, na.rm=T), 
+    output = output[,.(National_GRP = sum(National_GRP, na.rm=T),
                        Local_GRP = sum(Local_GRP, na.rm=T),
                        Total_GRP = sum(Total_GRP, na.rm=T),
                        National_occ = sum(National_occ, na.rm=T),
                        Local_occ = sum(Local_occ, na.rm=T),
-                       Total_occ = sum(Total_occ, na.rm=T)), by=c(keep_cols)] # match tier? without it, it's 1-4
+                       Total_occ = sum(Total_occ, na.rm=T)), by=c(keep_cols)]
     print(head(output))
-    print(nrow(output))
-    
+    print(nrow(output)) # Check if nrow = previous nrow
+
     if(nrow(output)>0){
       print("Saving...")
       dir.create(file.path(output_dir, toString(dir_name)), showWarnings = FALSE)
@@ -194,7 +195,47 @@ for(i in 1:length(RMS_filenames)){
   }
 }
 
-# Also need to add competitor values once data is built the first time
+# Add competitor values once data is built the first time
+# Create "sum" file
+merged_filenames = list.files(file.path(output_dir,toString(dir_name)), full.names=T)
+for(i in 1:length(merged_filenames)){
+  merged_filename = merged_filenames[[i]]
+  brand_data = readRDS(merged_filename)
+  
+  brand_data = brand_data[, c("Week", "dma_code", "National_GRP", "Local_GRP", "Total_GRP",
+                              "National_occ", "Local_occ", "Total_occ"), with=F]
+  if(i==1){
+    sum_data = copy(brand_data)
+  } else {
+    sum_data = rbind(sum_data, brand_data)
+    sum_data = sum_data[,.(National_GRP = sum(National_GRP, na.rm=T), 
+                           Local_GRP = sum(Local_GRP, na.rm=T),
+                           Total_GRP = sum(Total_GRP, na.rm=T),
+                           National_occ = sum(National_occ, na.rm=T),
+                           Local_occ = sum(Local_occ, na.rm=T),
+                           Total_occ = sum(Total_occ, na.rm=T)), by=c("Week", "dma_code")]
+  }
+}
+setnames(sum_data, c("Week", "dma_code", "National_GRP_sum", "Local_GRP_sum",
+                     "Total_GRP_sum", "National_occ_sum", "Local_occ_sum", "Total_occ_sum"))
+print(head(sum_data))
 
+# Add competitor columns
+for(i in 1:length(merged_filenames)){
+  merged_filename = merged_filenames[[i]]
+  RMS_brand_code = sub(pattern = "(.*?)\\..*$", replacement = "\\1", basename(merged_filename))
+  brand_data = readRDS(merged_filename)
+  brand_data = merge(brand_data, sum_data, by=c("Week","dma_code"))
+  brand_data[, `:=`(National_GRP_rival = National_GRP_sum-National_GRP,
+                    Local_GRP_rival = Local_GRP_sum-Local_GRP,
+                    Total_GRP_rival = Total_GRP_sum-Total_GRP,
+                    National_occ_rival = National_occ_sum-National_occ,
+                    Local_occ_rival = Local_occ_sum-Local_occ,
+                    Total_occ_rival = Total_occ_sum-Total_occ)]
+  brand_data[, (c("National_GRP_sum", "Local_GRP_sum", "Total_GRP_sum", 
+                 "National_occ_sum", "Local_occ_sum", "Total_occ_sum")):=NULL, with=F]
+  saveRDS(brand_data, file=paste0(file.path(output_dir, toString(dir_name)), "/",
+                                  RMS_brand_code, ".rds"))
+}
         
         
