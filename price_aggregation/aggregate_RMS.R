@@ -1,4 +1,10 @@
-# This R script handles price and quantity aggregation in RMS and Homescan Data
+# merge_RMS_Ad.R
+# -----------------------------------------------------------------------------
+# Author:             Albert Kuo
+# Date last modified: December 13, 2016
+#
+# # This R script handles price and quantity aggregation in RMS and Homescan Data
+
 library(bit64)
 library(data.table)
 library(foreach)
@@ -24,9 +30,10 @@ if(!run_grid){
   topbrandcodes = competitors_RMS$brand_code_uc
   topmodulecodes = lapply(competitors_RMS$product_module_descr, 
                           function(x){products[product_module_descr==x]$product_module_code[1]})
-  # Drop unnecessary products columns
-  descr_cols = grep("descr", names(products))
-  products[, c(descr_cols):=NULL]
+  # Only keep necessary products columns
+  products = products[, c("upc", "upc_ver_uc_corrected", "product_module_code",
+                          "multi", "size1_amount", "brand_code_uc_corrected", 
+                          "dataset_found_uc"), with=F]
 }
 
 source_dir = '/grpshares/ghitsch/data/RMS-Build-2016/RMS-Processed/Modules'
@@ -35,20 +42,18 @@ output_dir = '/grpshares/hitsch_shapiro_ads/data/RMS/Brand-Aggregates'
 ## Helper functions -----------
 # Function to fill in NA prices
 Fill.NA.Prices <- function(DT){
-  move = copy(DT) # Is this necessary?
   vars = c("upc", "upc_ver_uc_corrected", "store_code_uc", "week_end", "base_price")
-  setkeyv(move, vars[-5])
-  inds = match(vars, colnames(move))
-  bps  = move[, inds, with=FALSE]
+  setkeyv(DT, vars[-5])
+  inds = match(vars, colnames(DT))
+  bps  = DT[, inds, with=FALSE]
   str  = bps[, -5, with=FALSE]
   bps  = bps[!is.na(base_price)]
   bps  = bps[str, roll=TRUE, rollends=c(TRUE, TRUE)]
-  move[, base_price:=bps$base_price]
-  move[is.na(imputed_price), imputed_price:=base_price]
+  DT[, base_price:=bps$base_price]
+  DT[is.na(imputed_price), imputed_price:=base_price]
   # At this point, if base price still has NA, it must be all NA
   # These stores are effectively un-processed
-  move[is.na(base_price), processed := FALSE]
-  return(move)
+  DT[is.na(base_price), processed := FALSE]
 }
 
 # Function that does brand aggregation
@@ -61,14 +66,22 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
   if(length(brand_codes)>0){
     DT_brands = list()
     for(i in 1:length(brand_codes)){
-      brand_code = brand_codes[[i]]
-      DT_brand = DT[brand_code_uc_corrected==brand_code]
+      print(i)
+      if(length(brand_codes)>1){
+        brand_code = brand_codes[[i]]
+        DT_brand = DT[brand_code_uc_corrected==brand_code]
+      } else {
+        DT_brand = DT
+      }
+      
       # Quantity Aggregation
       # Assumption that every row in movement is unique by product-store-week
       DT_brand[, volume:=size1_amount*multi]
       DT_brand[, quantity:=units*volume]
+      DT_brand[, (c("size1_amount","multi")):=NULL, with=F]
       
       # Price Aggregation
+      print("price aggregation")
       DT_brand[, revenue:=imputed_price*units]
       if(weight_type=="store-revenue/week"){
         DT_brand[, week_range:=as.integer(difftime(max(week_end), min(week_end), units="weeks")),
@@ -83,6 +96,7 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
       }
       
       # Promotion Aggregation
+      print("promo aggregation")
       threshold = promotion_threshold
       DT_brand[, promo_weight:=weight*(!is.na(base_price)&!is.na(imputed_price))] 
       DT_brand[, promotion:=(base_price-imputed_price)/base_price > threshold]
@@ -93,6 +107,7 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
       DT_brand[, base_price_weighted:=base_weight*base_price/volume]
       
       # Aggregation Process
+      print("aggregation")
       DT_brand = DT_brand[, .(units=sum(quantity, na.rm=T), 
                               equiv_price_weighted=sum(equiv_price_weighted, na.rm=T),
                               promotion_weighted=sum(promotion_weighted, na.rm=T),
@@ -107,7 +122,8 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
       DT_brand[, promo_dummy:=(base_price-price)/base_price > threshold]
       DT_brand = DT_brand[, .(brand_code_uc_corrected, product_module_code, store_code_uc, week_end,
                               price, units, base_price, promo_percentage, promo_dummy)]
-      DT_brands[[i]] = DT_brand
+      print("Copy to list")
+      DT_brands[[i]] = copy(DT_brand)
     }
     output = rbindlist(DT_brands)
     return(output)
@@ -117,7 +133,7 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
 
 # Stack upc files for a specified brand
 brand_upcs = function(brand_code, module_code){
-  upc_list = unique(products[brand_code_uc==brand_code & 
+  upc_list = unique(products[brand_code_uc_corrected==brand_code & 
                                product_module_code==module_code &
                                (dataset_found_uc=='ALL' | dataset_found_uc=='RMS')]$upc)
   upc_list = paste0(upc_list,'.RData')
@@ -125,7 +141,7 @@ brand_upcs = function(brand_code, module_code){
 }
 
 #foreach(k = length(topbrandcodes):1) %dopar% { 
-for(k in 782:1){ # issue with 783
+for(k in 783:783){ # issue with 783, 747
 #for(k in 1:1){
   print(k)
   brand_code = topbrandcodes[[k]] # Bud light = 520795, Coca-Cola R = 531429
@@ -142,6 +158,9 @@ for(k in 782:1){ # issue with 783
     filename = upc_filenames[[i]]
     if(file.exists(filename)){
       load(filename)
+      move = move[, c("upc", "upc_ver_uc_corrected", "store_code_uc",
+                      "week_end", "base_price", "imputed_price", "units", "processed"),
+                  with=F]
       upc_files[[i]] = copy(move)
     } else {
       #print(paste(basename(filename), "doesn't exist."))
@@ -155,7 +174,11 @@ for(k in 782:1){ # issue with 783
     print("Fill NA...")
     DT = Fill.NA.Prices(DT)
     row_DT = nrow(DT)
+    print(head(DT))
+    print(head(products))
+    print("Merge to products...")
     DT = merge(DT, products, by=c("upc","upc_ver_uc_corrected"), allow.cartesian=T)
+    DT[, dataset_found_uc:=NULL]
     if(nrow(DT)>row_DT){
       # Still don't know why this happens, unless there are duplicates in the products table
       # which there are not 
