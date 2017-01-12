@@ -19,11 +19,13 @@ brands_RMS = merge(brands_RMS, productgroupdict,
                    by="product_group_descr", all.x=T)
 brands_RMS = brands_RMS[order(rev_sum,decreasing=T)]
 brands_RMS = brands_RMS[!grepl("CTL BR", brands_RMS$brand_descr)]
+
 ## Save brand data
 setcolorder(brands_RMS, c("brand_code_uc","brand_descr",
                           "product_module_descr","product_group_descr",
                           "department_descr","category","rev_sum"))
 saveRDS(brands_RMS, '~/Booth/string_matching/string_matching_app/data/brands_RMS.rds')
+
 ## Save union of top brands per module per year (top competitors)
 top_brands = prod_meta[,.(rev_sum_year = sum(revenue_RMS)),
                       by=c("brand_code_uc","brand_descr","product_module_descr",
@@ -33,11 +35,13 @@ module_sums = prod_meta[,.(module_sum = sum(revenue_RMS)),
 top_brands = merge(top_brands, module_sums, by=c("product_module_descr","year"))
 top_brands[,prop_revenue:=rev_sum_year/module_sum]
 library(dplyr)
-top_brands = top_brands %>% 
-                group_by(product_module_descr, year) %>% 
-                arrange(desc(prop_revenue)) %>% 
-                mutate(cum_sum_prop = cumsum(prop_revenue)) %>%
-                filter(cum_sum_prop < .8 | (cum_sum_prop > .8 & (cum_sum_prop-prop_revenue) < .8)) %>%
+top_brands_names = top_brands %>% 
+                    group_by(product_module_descr, year) %>% 
+                    arrange(desc(prop_revenue)) %>% 
+                    mutate(cum_sum_prop = cumsum(prop_revenue)) %>%
+                    filter(cum_sum_prop < .8 | (cum_sum_prop > .8 & (cum_sum_prop-prop_revenue) < .8)) 
+top_brands_names = unique(top_brands_names$brand_descr)
+top_brands = top_brands[brand_descr %in% top_brands_names] %>%
                 group_by(brand_descr, add=TRUE) %>% mutate(prop_revenue_avg = mean(prop_revenue)) %>%
                 group_by(brand_descr, product_module_descr) %>% mutate(rev_sum = sum(rev_sum_year)) %>%
                 group_by(product_module_descr) %>% distinct(brand_descr, .keep_all = TRUE) 
@@ -147,7 +151,6 @@ create_candidates_table <- function(i){
 candidates_tables = lapply(1:length(candidates_indices),create_candidates_table)
 all_candidates = Reduce(rbind, candidates_tables)
 write.csv(all_candidates, "all_candidates.csv", row.names=F)
-
 
 # Match groups
 # groups_RMS = unique(prod_meta$product_group_descr)
