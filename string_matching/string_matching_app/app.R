@@ -6,6 +6,7 @@
 #
 #    http://shiny.rstudio.com/
 #
+# To deploy application to shinyapps, run the following:
 # library(rsconnect)
 # rsconnect::deployApp('~/Booth/string_matching/string_matching_app/')
 
