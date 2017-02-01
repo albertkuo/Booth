@@ -1,13 +1,16 @@
-## ================
-## Ad Intel =======
-## ================
+# ad_extract.R
+# -----------------------------------------------------------------------------
+# Author:             Albert Kuo
+# Date last modified: December 19, 2016
+#
 # Read Ad Intel files and extract data corresponding to brands found in Brand Aggregates
 # Save brand extracts in aggregated_extracts to be used later in merge_RMS_Ad.R
+
 library(data.table)
 
 RMS_input_dir = "/grpshares/hitsch_shapiro_ads/data/RMS/Brand-Aggregates"
 ad_output_dir = "/grpshares/hitsch_shapiro_ads/data/Ad_Intel"
-output_dir = "/grpshares/hitsch_shapiro_ads/data/RMS_Ad/"
+#output_dir = "/grpshares/hitsch_shapiro_ads/data/RMS_Ad/"
 
 #brand_code = 518917
 RMS_filenames = list.files(RMS_input_dir, full.names=T, recursive=T)
@@ -60,13 +63,21 @@ for(i in 1:length(ad_filenames)){
                 .SDcols = c("Network Clearance Spot TV Duration", "Syndicated Clearance Spot TV Duration",
                             "Spot TV Duration")]
         ad_data[, Local_occ:=Local_occ/30]
+        
+        ad_data[, National_Spend:=rowSums(.SD, na.rm=T),
+                .SDcols = c("Network TV Spend","Syndicated TV Spend","Cable TV Spend",
+                            "Spanish Language Cable TV Spend", "Spanish Language Network TV Spend")]
+        ad_data[, Local_Spend:=rowSums(.SD, na.rm=T),
+                .SDcols = c("Network Clearance Spot TV Spend", "Syndicated Clearance Spot TV Spend",
+                            "Spot TV Spend")]
 
         ad_data = ad_data[, c("BrandCode", "Week", "MarketCode",
                               "National_GRP", "Local_GRP",
-                              "National_occ", "Local_occ"), with=F]
+                              "National_occ", "Local_occ",
+                              "National_Spend", "Local_Spend"), with=F]
 
         dir.create(file.path(ad_output_dir, "aggregated_extracts", toString(dir_name)), showWarnings = FALSE)
-        print(nrow(ad_data))
+        #print(nrow(ad_data))
         write.csv(ad_data, paste0(file.path(ad_output_dir, "aggregated_extracts", toString(dir_name)), "/",
                                   RMS_brand_code, "_", toString(i), ".csv"), row.names=F)
       }
