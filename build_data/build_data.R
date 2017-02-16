@@ -153,6 +153,7 @@ impute_imp <- function(prodocc, monthpath.string){
   substring(monthpath.string, nchar(monthpath.string)-1) = params$month1
   impfilename = list.files(pattern = "IMPC.*?SP", path = monthpath.string)
   imp = read_imp(monthpath.string, impfilename)
+  imp = imp[HispanicFlag==N]
   imp[, c("MediaTypeID","PeriodYearMonth"):=NULL]
   prodoccimp = merge(prodocc, imp, by=keys_imp, allow.cartesian=T, all.x=T)
   if(params$weight2!=0){
@@ -297,6 +298,7 @@ for(i in 1:length(monthpath.strings)){
   imp2plus = 1
   occ_group4 = "(NI|LI|TN|TR)"             # Has imp2plus column
   occ_group5 = "(FS|LM|LN|LS|NM|NN|NS|OU)" # Does not have imp2plus column
+  #occ_group6 = "(LC)"                      # Local/Regional Cable TV doesn't have imp
   occ_groups = c(occ_group4, occ_group5)
   
   for(j in 1:length(occ_groups)){
