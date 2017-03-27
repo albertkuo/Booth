@@ -1,7 +1,7 @@
 # build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: December 5, 2016
+# Date last modified: March 27, 2016
 #
 # This is an R script that will build R Formatted Ad Intel Files
 # using Nielsen_Raw tsv formatted files.
@@ -153,7 +153,7 @@ impute_imp <- function(prodocc, monthpath.string){
   substring(monthpath.string, nchar(monthpath.string)-1) = params$month1
   impfilename = list.files(pattern = "IMPC.*?SP", path = monthpath.string)
   imp = read_imp(monthpath.string, impfilename)
-  imp = imp[HispanicFlag==N]
+  imp = imp[HispanicFlag=='N']
   imp[, c("MediaTypeID","PeriodYearMonth"):=NULL]
   prodoccimp = merge(prodocc, imp, by=keys_imp, allow.cartesian=T, all.x=T)
   if(params$weight2!=0){
@@ -273,7 +273,7 @@ for(i in 1:length(monthpath.strings)){
         # Aggregate sums by id_cols and cast (opposite of melt) data
         prodoccimpue[, GRP:=(imp_total/ue_total)*100]
         prodoccimpue$GRP[is.na(prodoccimpue$GRP)] = 0
-        prodoccimpue[, Week:=format(AdDate,format="%W/%Y")]
+        prodoccimpue[, Week:=ceiling_date(AdDate, "week")]
         prodoccimpue[, Count:=1]
         prodoccimpue = prodoccimpue[,.(GRP_sum = sum(GRP, na.rm=T), Spend_sum = sum(Spend, na.rm=T),
                        Duration_sum = sum(Duration, na.rm=T), Number = sum(Count, na.rm=T)),
@@ -307,7 +307,7 @@ for(i in 1:length(monthpath.strings)){
       prodocc = join_occ_prod(monthpath.string,occfilename,product)
       
       if(nrow(prodocc)>0){
-        prodocc[, Week:=format(AdDate,format="%W/%Y")]
+        prodocc[, Week:=ceiling_date(AdDate, "week")]
         prodocc = merge(prodocc,mediatype,by="MediaTypeID")
         mediatypestr = prodocc$MediaTypeDesc[1]
         

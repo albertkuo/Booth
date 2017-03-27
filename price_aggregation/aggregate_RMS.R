@@ -1,7 +1,7 @@
 # merge_RMS_Ad.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: December 13, 2016
+# Date last modified: January 6, 2016
 #
 # # This R script handles price and quantity aggregation in RMS and Homescan Data
 
@@ -66,7 +66,6 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
   if(length(brand_codes)>0){
     DT_brands = list()
     for(i in 1:length(brand_codes)){
-      print(i)
       if(length(brand_codes)>1){
         brand_code = brand_codes[[i]]
         DT_brand = DT[brand_code_uc_corrected==brand_code]
@@ -133,15 +132,18 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
 
 # Stack upc files for a specified brand
 brand_upcs = function(brand_code, module_code){
-  upc_list = unique(products[brand_code_uc_corrected==brand_code & 
-                               product_module_code==module_code &
-                               (dataset_found_uc=='ALL' | dataset_found_uc=='RMS')]$upc)
+  upc_list = products[brand_code_uc_corrected==brand_code & 
+                        product_module_code==module_code &
+                        (dataset_found_uc=='ALL' | dataset_found_uc=='RMS')]$upc
+  if(length(upc_list)>0){
+    upc_list = unique(upc_list)
+  }
   upc_list = paste0(upc_list,'.RData')
   return(upc_list)
 }
 
 #foreach(k = length(topbrandcodes):1) %dopar% { 
-for(k in 783:783){ # issue with 783, 747
+for(k in length(topbrandcodes):1){ # issue with 783, 747
 #for(k in 1:1){
   print(k)
   brand_code = topbrandcodes[[k]] # Bud light = 520795, Coca-Cola R = 531429
@@ -172,28 +174,17 @@ for(k in 783:783){ # issue with 783, 747
   print(nrow(DT))
   if(nrow(DT)>0){
     print("Fill NA...")
-    DT = Fill.NA.Prices(DT)
+    Fill.NA.Prices(DT)
     row_DT = nrow(DT)
-    print(head(DT))
-    print(head(products))
     print("Merge to products...")
     DT = merge(DT, products, by=c("upc","upc_ver_uc_corrected"), allow.cartesian=T)
     DT[, dataset_found_uc:=NULL]
-    if(nrow(DT)>row_DT){
-      # Still don't know why this happens, unless there are duplicates in the products table
-      # which there are not 
-      print("CARTESIAN JOIN!-------------------------------")
-      print(table(DT$brand_code_uc_corrected))
-    }
     # Some products belong to multiple brands when upc_ver changes? 
     DT = DT[brand_code_uc_corrected==brand_code]
     print(nrow(DT))
     print("Begin aggregation...")
-    aggregated = brandAggregator(DT, "total revenue", 0.05)
+    aggregated = brandAggregator(DT, "store-revenue/week", 0.05)
     print(head(aggregated))
-    #print(nrow(aggregated))
-    #print(summary(aggregated$base_price))
-    #print(summary(aggregated$price))
     if(nrow(aggregated)>0){
       print("Saving...")
       dir.create(file.path(output_dir, toString(module_code)), showWarnings = FALSE)
@@ -207,15 +198,3 @@ for(k in 783:783){ # issue with 783, 747
   gc()
 }
 
-if(!run_grid){
-  load('Booth/price_aggregation/Old_Brand_Aggregate.RData')
-  budlight = test_data[brand_group_code==20929]
-  cocacola = test_data[brand_group_code==30886]
-  budlight2 = readRDS('Booth/price_aggregation/aggregated_brands2.rds')
-  cocacola2 = readRDS('Booth/price_aggregation/aggregated_brands.rds')
-  compare = merge(budlight, budlight2, by=c("store_code_uc","week_end"))
-  compare = merge(cocacola, cocacola2, by=c("store_code_uc","week_end"))
-  cor(compare$price, compare$imputed_price_hybrid, use="pairwise.complete.obs")
-  cor(compare$base_price, compare$base_price_hybrid, use="pairwise.complete.obs")
-  cor(compare$promo_percentage, compare$promotion_freq_5, use="pairwise.complete.obs")
-}

@@ -24,7 +24,7 @@ for(i in 1:length(RMS_filenames)){
 string_matches = fread('~/merge_metadata/string_matches.csv')
 
 # Parameters
-datastream = 2 # (need to implement) Datastream to use for National TV, note that Local TV only has Datastream = 3
+datastream = 2 # datastream to use for National TV, note that Local TV only has Datastream = 3
 
 prod_cols = c("BrandDesc","BrandVariant",
               "AdvParentCode","AdvParentDesc","AdvSubsidCode","AdvSubsidDesc",
@@ -49,8 +49,7 @@ for(i in 1:length(ad_filenames)){
 
       if(nrow(ad_data)>0){
         ad_data[, National_GRP:=rowSums(.SD, na.rm=T),
-                .SDcols = paste(c("Network TV GRP","Syndicated TV GRP","Cable TV GRP",
-                                  "Spanish Language Cable TV GRP", "Spanish Language Network TV GRP"), datastream)]
+                .SDcols = paste(c("Cable TV GRP","Spanish Language Cable TV GRP"), datastream)]
         ad_data[, Local_GRP:=rowSums(.SD, na.rm=T),
                 .SDcols = c("Network Clearance Spot TV GRP 3", "Syndicated Clearance Spot TV GRP 3",
                             "Spot TV GRP 3")]
@@ -64,17 +63,17 @@ for(i in 1:length(ad_filenames)){
                             "Spot TV Duration")]
         ad_data[, Local_occ:=Local_occ/30]
         
-        ad_data[, National_Spend:=rowSums(.SD, na.rm=T),
+        ad_data[, National_spend:=rowSums(.SD, na.rm=T),
                 .SDcols = c("Network TV Spend","Syndicated TV Spend","Cable TV Spend",
                             "Spanish Language Cable TV Spend", "Spanish Language Network TV Spend")]
-        ad_data[, Local_Spend:=rowSums(.SD, na.rm=T),
+        ad_data[, Local_spend:=rowSums(.SD, na.rm=T),
                 .SDcols = c("Network Clearance Spot TV Spend", "Syndicated Clearance Spot TV Spend",
                             "Spot TV Spend")]
 
         ad_data = ad_data[, c("BrandCode", "Week", "MarketCode",
                               "National_GRP", "Local_GRP",
                               "National_occ", "Local_occ",
-                              "National_Spend", "Local_Spend"), with=F]
+                              "National_spend", "Local_spend"), with=F]
 
         dir.create(file.path(ad_output_dir, "aggregated_extracts", toString(dir_name)), showWarnings = FALSE)
         #print(nrow(ad_data))
