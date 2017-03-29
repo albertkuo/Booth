@@ -12,6 +12,7 @@
 library(data.table)
 library(bit64)
 library(RcppRoll)
+library(lubridate)
 
 run_grid = T
 if(!run_grid){
@@ -80,6 +81,7 @@ for(k in 1:length(dir_names)){
       if(nrow(Ad_data)>0){
         # Fill in missing rows with cross-join
         print("Filling in missing rows...")
+        Ad_data[, Week:=as.Date(Week)]
         setkey(Ad_data, BrandCode, MarketCode, Week)
         Ad_data = Ad_data[CJ(unique(BrandCode), unique(MarketCode), 
                              seq(min(Week), max(Week), by=7))]
