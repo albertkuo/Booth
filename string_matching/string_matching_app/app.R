@@ -197,9 +197,8 @@ server <- shinyServer(function(input, output, session) {
         }
         data = cbind(match_tier, data)
       }
-      # If no matches, return entire dataset in the same category
+      # If no matches, return empty dataset
       else {
-      data <- brands_ad[brands_ad$category==queryrow$category,]
       match_tier = factor(rep(0,nrow(data)), levels = c(0:4), ordered = TRUE)
       data = cbind(match_tier, data)
       }
