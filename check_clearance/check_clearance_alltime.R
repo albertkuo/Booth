@@ -42,7 +42,7 @@ provider = "ABC"
 provider_code = "A" #A = ABC, C=CBS
 
 for(i in 1:length(monthpath.strings)){
-#for(i in 1:2){
+#for(i in 1:12){
   print(i)
   monthpath.string = monthpath.strings[[i]]
   # Read files
@@ -113,7 +113,7 @@ for(i in 1:length(monthpath.strings)){
     ny[, explained_missing:=(difftime_before<=shift(Duration, 1, type="lag") &
                                shift(MediaTypeDesc, 1, type="lag")=="Spot TV")
        | (difftime_before>90) | (difftime_after>90) 
-       | (2<=hour(time) & hour(time)<=5)]
+       | (2<=hour(time) & hour(time)<5)]
     ny[, non_missing:=(has_match | explained_missing)]
     ny[MediaTypeDesc!="Network TV", `:=`(match_clearance=NA, replaced_by_spot=NA, 
                                          has_match=NA, explained_missing=NA,
