@@ -157,6 +157,7 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
       ny[, match_network:=NULL]
       
       di = ny[MediaTypeDesc=="Network Clearance Spot TV"]$DistributorID[[1]]
+      pym = ny[MediaTypeDesc=="Network Clearance Spot TV"]$PeriodYearMonth[[1]]
       ny = ny[MediaTypeDesc=="Network TV"]
       if(tz!="US/Central" & tz!="US/Eastern"){
         ny = ny[, .(non_missing=any(non_missing)),
@@ -171,10 +172,11 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
                               !non_missing) | block_missing)]
       ny[, block_missing:=(block_missing & !(PrimBrandCode %in% 
                                                unmatched_clearance_brands))]
-      ny[, MarketCode:=marketcode]
-      ny[, DistributorID:=di]
-      ny[, DayOfWeek:=wday(AdDate)]
-      ny[, TimeIntervalNumber:=sapply(ny$AdTime, get_time_interval)]
+      ny[, `:=`(MarketCode = marketcode,
+                DistributorID = di,
+                PeriodYearMonth = pym,
+                DayOfWeek = wday(AdDate),
+                TimeIntervalNumber = sapply(ny$AdTime, get_time_interval))]
       missing_DT_list[[counter]] = copy(ny[non_missing==F])
       counter = counter + 1
     }
