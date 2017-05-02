@@ -47,13 +47,15 @@ convert_timezone = data.table(time_zones_1=c("ETZ","CTZ","MTZ","PTZ","YTZ","HTZ"
 get_time_interval = function(AdTime){
   tin = time_intervals[(strptime(start_time, "%I:%M %p") <= strptime(AdTime, "%H:%M:%S")) & 
                        (strptime(end_time, "%I:%M %p") > strptime(AdTime, "%H:%M:%S"))]$time_interval_number
+  tin = as.integer(tin)
   return(tin)
 }
 
 # Variables and Parameters  ----------
 counter = 1
-provider_vec = c("ABC", "NBC", "ION", "FOX", "CW", "CBS", "ABC") # What about syndicated?
-provider_code_vec = c("A","N","X","F","Y","C","A") 
+provider_vec = c("ABC", "NBC", "ION", "FOX", "CW", "CBS") # What about syndicated?
+provider_code_vec = c("A","N","X","F","Y","C") 
+time_window = 6 # 6 seconds
 
 # Main section  ----------
 #foreach(i = 1:length(monthpath.strings)) %dopar% { 
@@ -97,7 +99,7 @@ for(i in 1:1){
       network[, time:=with_tz(time, tz=tz)]
       
       # Account for unpredictable time delays in west coast and other time zones
-      # Replicate and aggregate by ID later
+      # by replicating and aggregating by ID later
       if(tz!="US/Central" & tz!="US/Eastern"){
         network[, id:=.I]
         network = network[rep(1:nrow(network), each=7)]
@@ -121,8 +123,6 @@ for(i in 1:1){
       #print("Calculating delays and matches...")
       ny[, difftime_after:=diff(time)]
       ny[, difftime_before:=shift(difftime_after,1)]
-      ny[, time_gap:=difftime_after>15*60]
-      time_window = 6
       ny[, match_clearance:=(difftime_after<=time_window & 
                                shift(MediaTypeDesc, 1, type="lead")=="Network Clearance Spot TV" &
                                PrimBrandCode==shift(PrimBrandCode, 1, type="lead")) 
@@ -133,16 +133,14 @@ for(i in 1:1){
                                 shift(MediaTypeDesc, 1, type="lead")=="Spot TV")
          | (difftime_before<=time_window &
               shift(MediaTypeDesc, 1, type="lag")=="Spot TV")]
-      ny[, has_match:=(match_clearance | replaced_by_spot)]
-      # Possible explanations: Spot TV overran, start/end of commercial break, between 2am-5am
+      # explained_missing: Spot TV overran, start/end of commercial break, between 2am-5am
       ny[, explained_missing:=(difftime_before<=shift(Duration, 1, type="lag") &
                                  shift(MediaTypeDesc, 1, type="lag")=="Spot TV")
          | (difftime_before>90) | (difftime_after>90) 
          | (2<=hour(time) & hour(time)<5)]
-      ny[, non_missing:=(has_match | explained_missing)]
+      ny[, non_missing:=(match_clearance | replaced_by_spot | explained_missing)]
       ny[MediaTypeDesc!="Network TV", `:=`(match_clearance=NA, replaced_by_spot=NA, 
-                                           has_match=NA, explained_missing=NA,
-                                           non_missing=NA)]
+                                           explained_missing=NA, non_missing=NA)]
       
       # Calculate block_missing Network TV occurrences
       #print("Calculating block_missing...")
@@ -156,9 +154,12 @@ for(i in 1:1){
       unmatched_clearance_brands = ny[match_network==FALSE, PrimBrandCode]
       ny[, match_network:=NULL]
       
+      # Borrow values from Network Clearance for later use
       di = ny[MediaTypeDesc=="Network Clearance Spot TV"]$DistributorID[[1]]
       pym = ny[MediaTypeDesc=="Network Clearance Spot TV"]$PeriodYearMonth[[1]]
       ny = ny[MediaTypeDesc=="Network TV"]
+      
+      # Collapse by id for west coast and other time zones
       if(tz!="US/Central" & tz!="US/Eastern"){
         ny = ny[, .(non_missing=any(non_missing)),
                 by=.(id, AdDate, AdTime, MediaTypeID, MediaTypeDesc,
@@ -173,12 +174,16 @@ for(i in 1:1){
                               !non_missing) | block_missing)]
       ny[, block_missing:=(block_missing & !(PrimBrandCode %in% 
                                                unmatched_clearance_brands))]
+      ny = ny[non_missing==F]
+      ny = ny[, .(AdDate, AdTime, MediaTypeID, MediaTypeDesc, 
+                  PrimBrandCode, ScndBrandCode, TerBrandCode,
+                  block_missing)]
       ny[, `:=`(MarketCode = marketcode,
                 DistributorID = di,
                 PeriodYearMonth = pym,
                 DayOfWeek = wday(AdDate),
                 TimeIntervalNumber = sapply(ny$AdTime, get_time_interval))]
-      missing_DT_list[[counter]] = copy(ny[non_missing==F])
+      missing_DT_list[[counter]] = copy(ny)
       counter = counter + 1
     }
   }

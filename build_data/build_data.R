@@ -177,7 +177,8 @@ impute_imp <- function(prodocc, monthpath.string){
 ## =================================================================
 # Parallelization stops running before all months are done, need to fix; works when not in parallel
 #foreach(i = 1:length(monthpath.strings)) %dopar% { 
-for(i in 1:length(monthpath.strings)){
+#for(i in 1:length(monthpath.strings)){
+for(i in 1:1){
   monthpath.string = monthpath.strings[[i]]
   uepath.string = paste(dirname(monthpath.string), "UE", sep="/")
   print(basename(monthpath.string))
@@ -298,7 +299,7 @@ for(i in 1:length(monthpath.strings)){
   }
   
   # Using National TV as Local TV ----------
-  occ <- fread(paste0(missing_network_dir,"/",basename(monthpath.string),".rds"),showProgress=F)
+  occ <- readRDS(paste0(missing_network_dir,"/",basename(monthpath.string),".rds"))
   occ[,`:=`(AdDate=as.Date(AdDate, format="%m/%d/%Y"),
             PrimBrandCode=as.integer(PrimBrandCode),
             ScndBrandCode=as.integer(ScndBrandCode),
@@ -354,6 +355,7 @@ for(i in 1:length(monthpath.strings)){
     if(exists("aggregated")){
       aggregated = merge(aggregated,prodoccimpue,by=id_cols, all = TRUE)
     } else {aggregated = prodoccimpue}
+  }
     
   # Non-GRP Media (no impressions or UE file) ----------
   imp2plus = 1
@@ -414,7 +416,8 @@ for(i in 1:length(monthpath.strings)){
     
     # Save RDS file for the month to output_dir
     print(paste("Saving",basename(monthpath.string)))
-    saveRDS(aggregated, paste0(output_dir,"/",basename(monthpath.string),"_aggregated.rds"))
+    #saveRDS(aggregated, paste0(output_dir,"/",basename(monthpath.string),"_aggregated.rds"))
+    saveRDS(aggregated, "test_aggregated.rds")
     rm(aggregated)
   } else{
     print("LIKELY ERROR: aggregated is empty")
