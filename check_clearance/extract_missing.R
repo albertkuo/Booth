@@ -1,7 +1,7 @@
 # extract_missing.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: April 26, 2016
+# Date last modified: May 2, 2016
 #
 # This is an R script that finds and extracts
 # non matching Network and Syndicated occurrences.
@@ -55,10 +55,10 @@ counter = 1
 provider_vec = c("ABC", "NBC", "ION", "FOX", "CW", "CBS", "ABC") # What about syndicated?
 provider_code_vec = c("A","N","X","F","Y","C","A") 
 
-# Main code  ----------
-foreach(i = 1:length(monthpath.strings)) %dopar% { 
+# Main section  ----------
+#foreach(i = 1:length(monthpath.strings)) %dopar% { 
 #for(i in 1:length(monthpath.strings)){
-  #for(i in 1:12){
+for(i in 1:1){
   print(i)
   monthpath.string = monthpath.strings[[i]]
   missing_DT_list = list()
@@ -161,7 +161,8 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
       ny = ny[MediaTypeDesc=="Network TV"]
       if(tz!="US/Central" & tz!="US/Eastern"){
         ny = ny[, .(non_missing=any(non_missing)),
-                by=.(id, AdDate, AdTime, PrimBrandCode, ScndBrandCode, TerBrandCode)]
+                by=.(id, AdDate, AdTime, MediaTypeID, MediaTypeDesc,
+                     PrimBrandCode, ScndBrandCode, TerBrandCode)]
         ny[, id:=NULL]
       }
       ny[, block_missing:=(!shift(non_missing, 1, type="lag") & 
