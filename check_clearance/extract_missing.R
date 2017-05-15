@@ -1,7 +1,7 @@
 # extract_missing.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 2, 2016
+# Date last modified: May 9, 2016
 #
 # This is an R script that finds and extracts
 # non matching Network and Syndicated occurrences.
@@ -14,8 +14,8 @@ library(lubridate)
 registerDoParallel(cores = NULL)
 
 # Time Zones
-time_zones = fread("~/DMA_and_recording_method.csv")
-time_intervals = fread("~/Time_Interval_spot.csv")
+time_zones = fread("~/merge_metadata/DMA_and_recording_method.csv")
+time_intervals = fread("~/merge_metadata/Time_Interval_spot.csv")
 
 # Path names for traversal through year and month directories ----------
 source_dir = "/nielsen_raw/Ad_Intel"
@@ -38,6 +38,7 @@ media_id_to_desc = function(DT){
   DT[MediaTypeID==13, MediaTypeDesc:="Network Clearance Spot TV"]
   DT[MediaTypeID==5, MediaTypeDesc:="Spot TV"]
   DT[MediaTypeID==14, MediaTypeDesc:="Syndicated Clearance"]
+  DT[MediaTypeID==3, MediaTypeDesc:="Syndicated TV"]
 }
 
 convert_timezone = data.table(time_zones_1=c("ETZ","CTZ","MTZ","PTZ","YTZ","HTZ"),
@@ -45,22 +46,20 @@ convert_timezone = data.table(time_zones_1=c("ETZ","CTZ","MTZ","PTZ","YTZ","HTZ"
                                              "US/Mountain","US/Pacific",
                                              "US/Alaska","US/Hawaii"))
 get_time_interval = function(AdTime){
-  tin = time_intervals[(strptime(start_time, "%I:%M %p") <= strptime(AdTime, "%H:%M:%S")) & 
-                       (strptime(end_time, "%I:%M %p") > strptime(AdTime, "%H:%M:%S"))]$time_interval_number
-  tin = as.integer(tin)
-  return(tin)
+  sapply(AdTime, function(x){time_intervals[(strptime(start_time, "%I:%M %p") <= strptime(x, "%H:%M:%S")) & 
+                                              (strptime(end_time, "%I:%M %p") > strptime(x, "%H:%M:%S"))]$time_interval_number})
 }
 
 # Variables and Parameters  ----------
 counter = 1
-provider_vec = c("ABC", "NBC", "ION", "FOX", "CW", "CBS") # What about syndicated?
+provider_vec = c("ABC", "NBC", "ION", "FOX", "CW", "CBS") # What about syndicated? 
 provider_code_vec = c("A","N","X","F","Y","C") 
 time_window = 6 # 6 seconds
 
 # Main section  ----------
-#foreach(i = 1:length(monthpath.strings)) %dopar% { 
+foreach(i = 1:length(monthpath.strings)) %dopar% { 
 #for(i in 1:length(monthpath.strings)){
-for(i in 1:1){
+#for(i in 1:1){
   print(i)
   monthpath.string = monthpath.strings[[i]]
   missing_DT_list = list()
@@ -154,16 +153,19 @@ for(i in 1:1){
       unmatched_clearance_brands = ny[match_network==FALSE, PrimBrandCode]
       ny[, match_network:=NULL]
       
-      # Borrow values from Network Clearance for later use
-      di = ny[MediaTypeDesc=="Network Clearance Spot TV"]$DistributorID[[1]]
-      pym = ny[MediaTypeDesc=="Network Clearance Spot TV"]$PeriodYearMonth[[1]]
+      # Borrow values from Network Clearance/Spot for later use
+      di = unlist(ny[MediaTypeDesc=="Network Clearance Spot TV" |
+                       MediaTypeDesc=="Spot TV"]$DistributorID)[[1]]
+      pym = unlist(ny[MediaTypeDesc=="Network Clearance Spot TV" |
+                        MediaTypeDesc=="Spot TV"]$PeriodYearMonth)[[1]]
       ny = ny[MediaTypeDesc=="Network TV"]
       
       # Collapse by id for west coast and other time zones
       if(tz!="US/Central" & tz!="US/Eastern"){
         ny = ny[, .(non_missing=any(non_missing)),
                 by=.(id, AdDate, AdTime, MediaTypeID, MediaTypeDesc,
-                     PrimBrandCode, ScndBrandCode, TerBrandCode)]
+                     PrimBrandCode, ScndBrandCode, TerBrandCode,
+                     Duration, Spend)]
         ny[, id:=NULL]
       }
       ny[, block_missing:=(!shift(non_missing, 1, type="lag") & 
@@ -177,12 +179,12 @@ for(i in 1:1){
       ny = ny[non_missing==F]
       ny = ny[, .(AdDate, AdTime, MediaTypeID, MediaTypeDesc, 
                   PrimBrandCode, ScndBrandCode, TerBrandCode,
-                  block_missing)]
+                  Duration, Spend, block_missing)]
       ny[, `:=`(MarketCode = marketcode,
                 DistributorID = di,
                 PeriodYearMonth = pym,
                 DayOfWeek = wday(AdDate),
-                TimeIntervalNumber = sapply(ny$AdTime, get_time_interval))]
+                TimeIntervalNumber = as.integer(get_time_interval(AdTime)))]
       missing_DT_list[[counter]] = copy(ny)
       counter = counter + 1
     }
