@@ -1,7 +1,11 @@
-This repository only contains scripts that are essential for building the RMS_Ad data. It *does not* contain data or other auxiliary scripts used in data exploration.
+# Advertising Project
+This repository only contains scripts that are essential for building the RMS_Ad data. It **does not** contain data or other auxiliary scripts used in data exploration.
 
 ## build_Ad
 Builds aggregated Ad Intel data from raw data (still being modified)
+
+- `extract_missing.R`: finds network TV ads missing from clearance and saves them in intermediary data files in missing_network
+- `build_data.R`: merges and aggregates raw Ad Intel data and saves the built data files in aggregated
 
 ## string_matching
 Matches RMS brands with Ad Intel brands using a Shiny app
@@ -14,7 +18,7 @@ Matches RMS brands with Ad Intel brands using a Shiny app
 
 ## price_aggregation
 
-- `aggregate_RMS.R`: aggregates price, promotion and quantity by brand for top n brands in RMS. contains `brandAggregator` function 
+- `aggregate_RMS.R`: aggregates price, promotion and quantity by brand for top n brands in RMS (contains `brandAggregator` function) and creates intermediary data files in Brand-Aggregates
 
 ## zip_borders
 
@@ -26,8 +30,5 @@ Matches RMS brands with Ad Intel brands using a Shiny app
 - `ad_extract_save.R`: binds the monthly csv files created by `ad_extract.R` into an rds file
 - `merge_RMS_Ad.R`: merges RMS and Ad Intel data by brand/week/market
 - `add_competitors.R`: add competitors' prices and GRP to merged data
-
-## run_reg
-
 - `run_reg.R`: runs regression on brands in merged data
 
