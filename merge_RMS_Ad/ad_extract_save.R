@@ -1,7 +1,7 @@
 # ad_extract_save.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: January 16, 2016
+# Date last modified: Mar 9, 2017
 #
 # Take ad extracts created by ad_extract.R 
 # and collapse the csv files into one rds file per brand

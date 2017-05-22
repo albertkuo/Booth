@@ -1,7 +1,7 @@
 # add_competitors.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: February 1, 2016
+# Date last modified: May 22, 2017
 #
 # This is an R script that adds competitor values
 # after data is built the first time with merge_RMS_Ad.R
@@ -24,7 +24,8 @@ brands_RMS = prod_meta[, .(rev_sum = sum(revenue_RMS)),
                        by = c("brand_code_uc","brand_descr",
                               "product_module_code", "product_module_descr")]
 brands_RMS = brands_RMS[order(-rev_sum)]
-top100_brandcodes = brands_RMS[1:100]$brand_code_uc
+n = 300
+top_brandcodes = brands_RMS[1:n]$brand_code_uc
 
 num_competitors = 3 # Number of competitors whose prices/promotions we want to control for
 
@@ -43,7 +44,6 @@ for(k in 1:length(dir_names)){
   competitors = sapply(competitors, as.character)
   top_competitors = sapply(competitors[1:min(num_competitors+1, length(competitors))], as.character)
   print(top_competitors)
-  #top_competitors = c("531429","616141","602144","543721")
   competitors_datalist = list()
   
   # Read competitors data
@@ -59,7 +59,7 @@ for(k in 1:length(dir_names)){
     for(i in 1:length(merged_filenames)){
       merged_filename = merged_filenames[[i]]
       RMS_brand = sub(pattern = "(.*?)\\..*$", replacement = "\\1", basename(merged_filename))
-      if(RMS_brand %in% top100_brandcodes){
+      if(RMS_brand %in% top_brandcodes){
         if(RMS_brand %in% top_competitors){
           brand_data = copy(competitors_DT)
         } else {
