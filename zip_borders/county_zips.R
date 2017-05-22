@@ -6,8 +6,8 @@
 # This is an R script that translates zips to borders
 
 library(data.table)
-borders = fread('Booth/county/borders.csv')
-zipcrosscounty = fread('Booth/county/zipcrosscounty.csv')
+borders = fread('~/Booth/zip_borders/borders.csv')
+zipcrosscounty = fread('~/Booth/zip_borders/zipcrosscounty.csv')
 
 # Merge
 zipborders = merge(zipcrosscounty, borders, by="fips", all.x=T, allow.cartesian=T)
@@ -16,4 +16,4 @@ zipborders[, on_border:=sapply(bordername, function(x){if(is.na(x)){return(0)}el
 zipborders[, zip3:=floor(zip/100)]
 zipborders = zipborders[,.(zip, zip3, fips, countyname, state, on_border, bordername)]
 
-write.csv(zipborders, file = 'Booth/county/zipborders.csv', row.names=F)
+write.csv(zipborders, file = '~/Booth/merge_RMS_Ad/merge_metadata/zipborders.csv', row.names=F)
