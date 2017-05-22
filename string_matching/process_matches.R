@@ -1,7 +1,7 @@
 # process_matches.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2016
+# Date last modified: May 22, 2017
 #
 # This is an R script that processes the manual matches
 # into a simplified and more usable format.

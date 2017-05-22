@@ -1,7 +1,7 @@
 # brand_spend.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2016
+# Date last modified: May 22, 2017
 #
 # This is an R script that computes the spend by brand in Ad Intel data
 

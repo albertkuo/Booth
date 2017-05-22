@@ -1,7 +1,7 @@
 # string_matching.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2016
+# Date last modified: May 22, 2017
 #
 # This is an R script that creates data files for the Shiny string_matching app
 
@@ -15,16 +15,16 @@ library(bit64)
 source_dir = "~/Booth/string_matching"
 
 # Additional data to help with matching
-pccs = fread(paste0(source_dir, '/highlighted_categories.csv'))
+pccs = fread(paste0(source_dir, '/data/highlighted_categories.csv'))
 pccsubs = unique(pccs$PCCSubDesc)
-productgroupdict = fread(paste0(source_dir, '/productgroupdict.csv'))
-pccindusdict = fread(paste0(source_dir, '/pccindusdict.csv'))
+productgroupdict = fread(paste0(source_dir, '/data/productgroupdict.csv'))
+pccindusdict = fread(paste0(source_dir, '/data/pccindusdict.csv'))
 
 ## ================
 ## RMS data =======
 ## ================
-load(paste0(source_dir, '/Products-Corrected.RData'))
-load(paste0(source_dir, '/Meta-Data-Corrected.RData'))
+load(paste0(source_dir, '/data/Products-Corrected.RData'))
+load(paste0(source_dir, '/data/Meta-Data-Corrected.RData'))
 prod_meta = merge(products, meta_data)
 prod_meta = prod_meta[department_descr!="GENERAL MERCHANDISE"]
 
