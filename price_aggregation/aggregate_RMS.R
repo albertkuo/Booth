@@ -3,7 +3,7 @@
 # Author:             Albert Kuo
 # Date last modified: May 22, 2017
 #
-# # This R script handles price and quantity aggregation in RMS and Homescan Data
+# This R script handles price and quantity aggregation in RMS and Homescan Data
 
 library(bit64)
 library(data.table)
