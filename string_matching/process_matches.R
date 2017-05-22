@@ -5,6 +5,8 @@
 #
 # This is an R script that processes the manual matches
 # into a simplified and more usable format.
+# Remember to run the bash script cat_matches first to get "all.csv"
+# from the individual brand matches files.
 
 library(data.table)
 library(bit64)
