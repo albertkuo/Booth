@@ -1,7 +1,7 @@
 # # run_reg.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: February 1, 2016
+# Date last modified: May 22, 2017
 #
 # This is an R script that runs regression for a brand
 # using data built from merge_RMS_Ad.R and add_competitors.R
@@ -14,21 +14,8 @@ library(data.table)
 library(xtable)
 library(stargazer)
 
-run_grid = T
-
-if(!run_grid){
-  load('Booth/merge_RMS_Ad/Store-Table-Processed.RData')
-  brand_data = readRDS('Booth/500858.rds')
-  brand_data[, store_code_uc:=as.factor(store_code_uc)]
-  brand_data[, Week:=as.factor(Week)]
-  result = felm(log(1+revenue) ~ log(price)+promo_percentage|store_code_uc, brand_data)
-  result = felm(log(1+revenue) ~ log(price)+promo_percentage|store_code_uc+Week, brand_data)
-  coeffs = result$coefficients
-  se = result$se
-} 
-
 # Metadata
-load('~/merge_metadata/Store-Table-Processed.RData')
+load('~/merge_RMS_Ad/merge_metadata/Store-Table-Processed.RData')
 store_sample = move_store_table[top_90_store==T]$store_code_uc
 
 load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Products-Corrected.RData')
@@ -39,11 +26,12 @@ brands_RMS = prod_meta[,.(rev_sum = sum(revenue_RMS)),
                        by=c("brand_code_uc","brand_descr",
                             "product_module_code", "product_module_descr")]
 brands_RMS = brands_RMS[order(-rev_sum)]
-top100_brandcodes = brands_RMS[1:100]$brand_code_uc
+n = 100
+top100_brandcodes = brands_RMS[1:n]$brand_code_uc
 
 load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Stores.RData')
-load('~/merge_metadata/Store-Address.RData')
-zipborders = fread('~/merge_metadata/zipborders.csv')
+load('~/merge_RMS_Ad/merge_metadata/Store-Address.RData')
+zipborders = fread('~/merge_RMS_Ad/merge_metadata/zipborders.csv')
 
 stores = stores[, c("store_code_uc","year","store_zip3","fips_state_code","fips_county_code"), with=F]
 store_info[, Year:=strtoi(substring(DATE, 0, 4), base=10)]
