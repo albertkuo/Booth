@@ -1,3 +1,10 @@
+# brand_spend.R
+# -----------------------------------------------------------------------------
+# Author:             Albert Kuo
+# Date last modified: May 22, 2016
+#
+# This is an R script that computes the spend by brand in Ad Intel data
+
 library(data.table)
 prod_cols = c("BrandCode","BrandDesc","BrandVariant",
               "AdvParentCode","AdvParentDesc","AdvSubsidCode","AdvSubsidDesc",
