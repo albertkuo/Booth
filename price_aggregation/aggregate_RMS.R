@@ -1,7 +1,7 @@
 # merge_RMS_Ad.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: January 6, 2016
+# Date last modified: May 22, 2017
 #
 # # This R script handles price and quantity aggregation in RMS and Homescan Data
 
@@ -15,16 +15,16 @@ registerDoParallel(cores = NULL)
 run_grid = T
 
 if(!run_grid){
-  load('Booth/price_aggregation/Meta-Data-Corrected.RData')
-  load('Booth/price_aggregation/Products-Corrected.RData')
+  load('Booth/string_matching/data/Products-Corrected.RData')
   # Sample file
   load('Booth/price_aggregation/1356240001.RData')
 } else {
   load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Products-Corrected.RData')
-  # Get top 100 brands and their competitors to aggregate
-  competitors_RMS = readRDS('~/top_brands.rds')
-  brands_RMS = readRDS('~/brands_RMS.rds')
-  topmodulenames = brands_RMS$product_module_descr[1:100]
+  # Get top n brands and their competitors to aggregate
+  n = 300
+  competitors_RMS = readRDS('~/string_matching/string_matching_app/data/top_brands.rds')
+  brands_RMS = readRDS('~/string_matching/string_matching_app/data/brands_RMS.rds')
+  topmodulenames = brands_RMS$product_module_descr[1:n]
   competitors_RMS = competitors_RMS[product_module_descr %in% topmodulenames]
   setorder(competitors_RMS, rev_sum)
   topbrandcodes = competitors_RMS$brand_code_uc
@@ -143,7 +143,7 @@ brand_upcs = function(brand_code, module_code){
 }
 
 #foreach(k = length(topbrandcodes):1) %dopar% { 
-for(k in length(topbrandcodes):1){ # issue with 783, 747
+for(k in length(topbrandcodes):1){ 
 #for(k in 1:1){
   print(k)
   brand_code = topbrandcodes[[k]] # Bud light = 520795, Coca-Cola R = 531429
