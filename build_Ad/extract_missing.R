@@ -20,6 +20,7 @@ time_intervals = fread("~/merge_metadata/Time_Interval_spot.csv")
 # Path names for traversal through year and month directories ----------
 source_dir = "/nielsen_raw/Ad_Intel"
 output_dir = "/grpshares/hitsch_shapiro_ads/data/Ad_Intel/missing_network"
+
 dirs = list.dirs(full.names=F,recursive=F,path=source_dir)
 years = as.character(c(2010:2014))
 months = c("01","02","03","04","05","06","07","08","09","10","11","12")
