@@ -1,0 +1,4 @@
+#!/bin/bash
+# bind all the brands' string matching files into one csv
+
+awk 'FNR==1 && NR!=1{next;}{print}' matches/*.csv > all.csv
