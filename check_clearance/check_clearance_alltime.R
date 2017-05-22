@@ -6,7 +6,7 @@ library(data.table)
 library(lubridate)
 
 # Time Zones
-time_zones = fread("~/DMA_and_recording_method.csv")
+time_zones = fread("~/merge_metadata/DMA_and_recording_method.csv")
 
 # Path names for traversal through year and month directories ----------
 source_dir = "/nielsen_raw/Ad_Intel"

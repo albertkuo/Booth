@@ -63,6 +63,7 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
   print(i)
   monthpath.string = monthpath.strings[[i]]
   missing_DT_list = list()
+  # Need to add cache to account for month mismatch between synd/synd_clear!!!
   # Read files
   dis_filename = list.files(pattern="RDC.*?DIS",path=monthpath.string)
   dis <- fread(paste(monthpath.string,dis_filename,dis_filename,sep="/"),showProgress=F)

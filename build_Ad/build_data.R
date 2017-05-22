@@ -1,23 +1,25 @@
-# build_data_health.R
+# build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: September 26, 2016
+# Date last modified: May 17, 2016
 #
-# This is an R script that will build R Formatted Ad Intel files 
-# for the health insurance category using Nielsen_Raw tsv formatted files.
+# This is an R script that will build R Formatted Ad Intel Files
+# using Nielsen_Raw tsv formatted files.
 
 ## ================
 ## Set-up =========
 ## ================
 library(data.table)
+library(bit64)
 library(foreach)
 library(doParallel)
+library(lubridate)
 
 registerDoParallel(cores = NULL)
 
 source_dir = "/nielsen_raw/Ad_Intel"
-output_dir = "/grpshares/hitsch_shapiro_ads/data/Ad_Intel/aggregated_health"
-product_code = "B212" # Health = B212, not dental = 2917, 2927
+output_dir = "/grpshares/hitsch_shapiro_ads/data/Ad_Intel/aggregated"
+missing_network_dir = "/grpshares/hitsch_shapiro_ads/data/Ad_Intel/missing_network"
 
 prod_cols = c("BrandCode","BrandDesc","BrandVariant",
               "AdvParentCode","AdvParentDesc","AdvSubsidCode","AdvSubsidDesc",
@@ -25,7 +27,7 @@ prod_cols = c("BrandCode","BrandDesc","BrandVariant",
               "PCCMajDesc","PCCIndusCode","PCCIndusDesc")
 id_cols = c(prod_cols,"Week","MarketCode")
 
-# Path names for traversal through year and month ----------
+# Path names for traversal through year and month directories ----------
 dirs = list.dirs(full.names=F,recursive=F,path=source_dir)
 years = as.character(c(2010:2014))
 months = c("01","02","03","04","05","06","07","08","09","10","11","12")
@@ -43,7 +45,6 @@ static_ref_dir = "2010_BackData_20160212_extracted/Static_Reference"
 mediatype <- fread(paste(source_dir,static_ref_dir,"RDMP_RDC_Y_2016_02_08-2016_02_08_MET/RDMP_RDC_Y_2016_02_08-2016_02_08_MET",sep="/"))
 mkt <- fread(paste(source_dir,static_ref_dir,"RDMP_RDC_Y_2016_02_08-2016_02_08_MKT/RDMP_RDC_Y_2016_02_08-2016_02_08_MKT",sep="/"))
 mktcodes = mkt[3:nrow(mkt),MarketCode]
-pgt <- fread(paste(source_dir,static_ref_dir,"RDMP_RDC_Y_2016_02_08-2016_02_08_PGT/RDMP_RDC_Y_2016_02_08-2016_02_08_PGT",sep="/"))
 
 ## ==========================
 ## Helper functions =========
@@ -68,9 +69,6 @@ read_prod <- function(monthpath.string){
 # Read impressions and collapse columns ----------
 read_imp <- function(monthpath.string, impfilename){
   imp <- fread(paste(monthpath.string,impfilename,impfilename,sep="/"),showProgress=F)
-  # Sum 65+ columns
-  eld.cols = grep("65",names(imp)) # over 65
-  imp[, eld_total:=rowSums(.SD), .SDcols = eld.cols]
   if(grepl("SR",impfilename)){
     # Use sum of 'Female/female' columns and 'Male' columns as imp_total for spot radio
     dem.cols = grep("male|Male",names(imp)) 
@@ -121,68 +119,95 @@ join_occ_prod <- function(monthpath.string, occfilename, product){
             PrimBrandCode=as.integer(PrimBrandCode),
             ScndBrandCode=as.integer(ScndBrandCode),
             TerBrandCode=as.integer(TerBrandCode))]
-  prim = merge(product,occ,by.x="BrandCode",by.y="PrimBrandCode") 
-  scnd = merge(product,occ,by.x="BrandCode",by.y="ScndBrandCode")
-  ter = merge(product,occ,by.x="BrandCode",by.y="TerBrandCode")
+  prim = merge(product,occ,by.x="BrandCode",by.y="PrimBrandCode", allow.cartesian=T) 
+  scnd = merge(product,occ,by.x="BrandCode",by.y="ScndBrandCode", allow.cartesian=T)
+  ter = merge(product,occ,by.x="BrandCode",by.y="TerBrandCode", allow.cartesian=T)
   prim$PrimBrandCode = prim$BrandCode
   scnd$ScndBrandCode = scnd$BrandCode
   ter$TerBrandCode = ter$BrandCode
-  productocc = rbind(prim,scnd,ter,fill=T)
-  return(productocc)
-}
-
-# Read TV Program and merge with TV occurrences ----------
-join_tv_program <- function(monthpath.string, productocc){
-  pgmfilename = list.files(pattern="RDC.*?PGM",path=monthpath.string)
-  pgm <- fread(paste(monthpath.string,pgmfilename,pgmfilename,sep="/"),showProgress=F)
-  tvp = merge(pgm,pgt,by="TVProgTypeCode")
-  productocc = merge(productocc,tvp,by=c("NielsenProgramCode","MonitorPlusProgramCode"))
-  return(productocc)
+  prodocc = rbind(prim,scnd,ter,fill=T)
+  return(prodocc)
 }
 
 # Clean GRP column names ---------- 
 change_name <- function(str){
-  str = gsub("_sum_mean_", " ", str)
-  str = gsub("_NA", "", str)
-  str = gsub("_", " ", str)
+  str = gsub("_1"," GRP 1", str)
+  str = gsub("_2"," GRP 2", str)
+  str = gsub("_3"," GRP 3", str)
+  str = gsub("_4"," GRP 4", str)
+  str = gsub("_NA", " GRP", str)
   return(str)
+}
+
+# Impute missing impressions for Spot TV ---------- 
+impute_table = data.table(month = c(1,3,4,6,8,9,10,12),
+                          month1 = c("02","02","02","05","07","07","07","11"),
+                          month2 = c("","05","05","07","11","11","11",""),
+                          weight1 = c(1,2/3,1/3,1/2,3/4,1/2,1/4,1),
+                          weight2 = c(0,1/3,2/3,1/2,1/4,1/2,3/4,0))
+
+impute_imp <- function(prodocc, monthpath.string){
+  # Exclude PeriodYearMonth from keys because that forces us to use Nielsen's imputation method
+  keys_imp = c("DistributorID","DayOfWeek","TimeIntervalNumber")
+  identifier_cols = names(prodocc)
+  month_int = strtoi(substring(basename(monthpath.string), 5), base=10)
+  params = impute_table[month==month_int]
+  substring(monthpath.string, nchar(monthpath.string)-1) = params$month1
+  impfilename = list.files(pattern = "IMPC.*?SP", path = monthpath.string)
+  imp = read_imp(monthpath.string, impfilename)
+  imp = imp[HispanicFlag=='N']
+  imp[, c("MediaTypeID","PeriodYearMonth"):=NULL]
+  prodoccimp = merge(prodocc, imp, by=keys_imp, all.x=T) # removed all.cartesian=T
+  if(params$weight2!=0){
+    substring(monthpath.string, nchar(monthpath.string)-1) = params$month2
+    impfilename = list.files(pattern = "IMPC.*?SP", path = monthpath.string)
+    imp = read_imp(monthpath.string, impfilename)
+    imp = imp[HispanicFlag=='N']
+    imp = imp[, append(keys_imp, "TV_HH"), with=F]
+    names(imp) = append(keys_imp, "TV_HH_2")
+    prodoccimp2 = merge(prodocc, imp, by=keys_imp, all.x=T)
+    prodoccimp = merge(prodoccimp, prodoccimp2, by=identifier_cols)
+    prodoccimp[, imp_total:=params$weight1*TV_HH+params$weight2*TV_HH_2]
+    prodoccimp[, TV_HH_2:=NULL]
+  }
+  return(prodoccimp)
 }
 
 ## =================================================================
 ## Traverse through year and month directories in parallel =========
 ## =================================================================
-foreach(i = 1:length(monthpath.strings)) %dopar% {
+# Parallelization stops running before all months are done, need to fix; works when not in parallel
+#foreach(i = 1:length(monthpath.strings)) %dopar% { 
+#for(i in 1:length(monthpath.strings)){
+for(i in 1:1){
   monthpath.string = monthpath.strings[[i]]
-  uepath.string = paste(dirname(monthpath.string),"UE",sep="/")
+  uepath.string = paste(dirname(monthpath.string), "UE", sep="/")
+  print(basename(monthpath.string))
   
-  pccbrdadv = read_prod(monthpath.string)
-  product = pccbrdadv[PCCSubCode==product_code]
-  product = product[!(ProductID %in% c(2917,2927))] # not dental
+  product = read_prod(monthpath.string)
   
   # GRP Media ----------
-  print("Merging with GRP media")
   NATIONAL_TV = 1
   LOCAL_TV = 2
   SPOT_RADIO = 3
-  group1 = "(BN|CN|BS|EC|EN)" # National TV, HispanicFlag = "N" or "Y"
-  group2 = "(SP|SC|NC)"       # Local TV, HispanicFlag = match
-  group3 = "(SR)"             # Spot Radio
-  groups = c(group1,group2,group3)
+  occ_group1 = "(BN|CN|BS|EC|EN)" # National TV, HispanicFlag = "N" or "Y"
+  occ_group2 = "(SP|SC|NC)"       # Local TV, HispanicFlag = match
+  occ_group3 = "(SR)"             # Spot Radio
+  occ_groups = c(occ_group1,occ_group2,occ_group3)
   imp_groups = c("NT","SP","SR")
   
-  for(j in 1:length(groups)){
+  for(j in 1:length(occ_groups)){
     impfilename = list.files(pattern = paste0("IMPC.*?",imp_groups[j]), path = monthpath.string)
     imp = read_imp(monthpath.string, impfilename)
     
     uefilename = list.files(pattern = paste0("UE.*?",imp_groups[j]), path = uepath.string)
     ue = read_ue(uepath.string, uefilename)
     
-    occfilenames = list.files(pattern = paste0("OCC.*?",groups[j]),path = monthpath.string)
+    occfilenames = list.files(pattern = paste0("OCC.*?",occ_groups[j]), path = monthpath.string)
     for(occfilename in occfilenames){
-      productocc = join_occ_prod(monthpath.string, occfilename, product)
+      prodocc = join_occ_prod(monthpath.string, occfilename, product)
       
       if(j==NATIONAL_TV){
-        productocc = join_tv_program(monthpath.string, productocc)
         # Join to impressions
         # Check HispanicFlag
         if(grepl("(EC|EN)",occfilename)){
@@ -193,11 +218,11 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
           uehisp = ue[HispanicFlag=="N"]
         }
         # Check ImpressionType
-        p = merge(productocc[ImpressionType=="P"], imphisp,
+        p = merge(prodocc[ImpressionType=="P"], imphisp,
                   by=c("NielsenProgramCode", "TelecastNumber"), allow.cartesian=T)
-        t = productocc[ImpressionType=="T"]
+        t = prodocc[ImpressionType=="T"]
         if(nrow(t)>0){
-          imphisp[,ImpressionDate:=as.Date(ImpressionDate, format="%b %d %Y")]
+          imphisp[, ImpressionDate:=as.Date(ImpressionDate, format="%b %d %Y")]
           t = merge(t, imphisp,
                     by.x=c("AdDate","DistributorID","TimeIntervalNumber"),
                     by.y=c("ImpressionDate","DistributorID","TimeIntervalNumber"),
@@ -212,8 +237,17 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
         setkey(uehisp, rollDate)
         prodoccimpue = uehisp[prodoccimp, roll=TRUE]
       } else if(j==LOCAL_TV){
+        imp = imp[HispanicFlag=='N'] # 'Y' is a subset of 'N'
         keys_imp = c("PeriodYearMonth","DistributorID","DayOfWeek","TimeIntervalNumber")
-        prodoccimp = merge(productocc, imp, by=keys_imp)
+        prodoccimp = merge(prodocc, imp, by=keys_imp)
+      
+        # Impute by sending orphan occurrences to a function
+        impute_prodoccimp = prodocc[PeriodYearMonth!=basename(monthpath.string)]
+        if(nrow(impute_prodoccimp)>0){
+          prodoccimp2 = impute_imp(impute_prodoccimp, monthpath.string)
+          print(nrow(prodoccimp2))
+          prodoccimp = rbind(prodoccimp, prodoccimp2, fill=T)
+        }
         
         prodoccimp[,rollDate:=AdDate]
         ue[,rollDate:=StartDate]
@@ -222,9 +256,10 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
         prodoccimpue = ue[prodoccimp, roll=TRUE]
       } else if(j==SPOT_RADIO){
         imp[,AdDate:=as.Date(AdDate, format="%m/%d/%Y")]
-        prodoccimp = merge(productocc, imp,
-                     by.x=c("AdDate","AdTime","MarketCode","DistributorID","RadioDaypartID","AdCode"),
-                     by.y=c("AdDate","AdTime","MarketCode","DistributorID","Daypart_id","AdCode")) #one column's name is different
+        prodoccimp = merge(prodocc, imp,
+                           by.x=c("AdDate","AdTime","MarketCode","DistributorID","RadioDaypartID","AdCode"),
+                           by.y=c("AdDate","AdTime","MarketCode","DistributorID","Daypart_id","AdCode"),
+                           allow.cartesian=T)
         prodoccimp[,`:=`(DataStreamID=NA, Duration=NA)]
         
         prodoccimp[,rollDate:=AdDate]
@@ -234,78 +269,129 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
         prodoccimpue = ue[prodoccimp, roll=TRUE]
       }
       
-      # Note: only adds columns for which there are impressions
+      # Note: only adds columns for which there are corresponding impressions
       if(nrow(prodoccimpue)>0){
         prodoccimpue = merge(prodoccimpue,mediatype,by.x="MediaTypeID.x",by.y="MediaTypeID")
         mediatypestr = prodoccimpue$MediaTypeDesc[1]
         if(!"Spend" %in% names(prodoccimpue)){prodoccimpue[, Spend:=NA]}
         
-        # Aggregate sums and cast (opposite of melt) data
-        prodoccimpue[, `:=`(GRP=(imp_total/ue_total)*100, GRP_eld=(eld_total/ue_total)*100)]
-        prodoccimpue[, Week:=format(AdDate,format="%W/%Y")]
+        # Aggregate sums by id_cols and cast (opposite of melt) data
+        prodoccimpue[, GRP:=(imp_total/ue_total)*100]
+        prodoccimpue$GRP[is.na(prodoccimpue$GRP)] = 0
+        prodoccimpue[, Week:=ceiling_date(AdDate, "week")]
         prodoccimpue[, Count:=1]
-        prodoccimpue2 = prodoccimpue[,.(GRP_sum = sum(GRP), GRP_eld_sum = sum(GRP_eld), Spend_sum = sum(Spend),
-                       Duration_sum = sum(Duration), Number = sum(Count)),
+        prodoccimpue = prodoccimpue[,.(GRP_sum = sum(GRP, na.rm=T), Spend_sum = sum(Spend, na.rm=T),
+                       Duration_sum = sum(Duration, na.rm=T), Number = sum(Count, na.rm=T)),
                     by=c(id_cols,"MediaTypeDesc","DataStreamID")]
-        cast_values = c("GRP_sum","GRP_eld_sum")
-        if("TVDaypartCode" %in% names(prodoccimpue)){
-          prodoccimpue[, is_daytime:=as.numeric(TVDaypartCode=='DT')]
-          prodoccimpue[, GRP_daytime:=GRP*is_daytime]
-          prodoccimpue_day = prodoccimpue[,.(GRP_daytime_sum = sum(GRP_daytime)), 
-                          by=c(id_cols,"MediaTypeDesc","DataStreamID")]
-          prodoccimpue2 = merge(prodoccimpue_day,prodoccimpue2,by=c(id_cols,"MediaTypeDesc","DataStreamID"))
-          cast_values = c(cast_values,"GRP_daytime_sum")
-        }
-        if("TVProgTypeCode" %in% names(prodoccimpue)){
-          prodoccimpue[, is_news:=as.numeric(TVProgTypeCode=='N')]
-          prodoccimpue[, GRP_news:=GRP*is_news]
-          prodoccimpue_news = prodoccimpue[,.(GRP_news_sum = sum(GRP_news)),
-                           by=c(id_cols,"MediaTypeDesc","DataStreamID")]
-          prodoccimpue2 = merge(prodoccimpue_news,prodoccimpue2,by=c(id_cols,"MediaTypeDesc","DataStreamID"))
-          cast_values = c(cast_values,"GRP_news_sum")
-        }
-        prodoccimpue = dcast(prodoccimpue2, as.formula(paste0(paste(c(id_cols,"Spend_sum","Duration_sum","Number"),collapse="+"),
+        # Use fun=mean because all the values are the same
+        prodoccimpue = dcast(prodoccimpue, as.formula(paste0(paste(c(id_cols,"Spend_sum","Duration_sum","Number"), collapse="+"),
                                              " ~ MediaTypeDesc+DataStreamID")),
-                     fun=mean, value.var=cast_values) # use mean because all the values are the same
+                             fun=mean, value.var=c("GRP_sum")) 
         
         # Merge to build data
         setnames(prodoccimpue, c("Spend_sum", "Duration_sum", "Number"),
                  paste(mediatypestr,c("Spend", "Duration", "Number")))
         names(prodoccimpue) = sapply(names(prodoccimpue), change_name)
         if(exists("aggregated")){
-          aggregated = merge(aggregated,prodoccimpue,by=id_cols,all = TRUE)
+          aggregated = merge(aggregated,prodoccimpue,by=id_cols, all = TRUE)
         } else {aggregated = prodoccimpue}
       }
     }
   }
   
-  # Non-GRP Media ----------
-  print("Merging with Non-GRP media")
-  imp2plus = 1
-  group4 = "(NI|LI|TN|TR)"             # Has imp2plus column
-  group5 = "(FS|LM|LN|LS|NM|NN|NS|OU)" # Does not have imp2plus column
-  groups = c(group4, group5)
+  # Using National TV as Local TV ----------
+  print("New section...")
+  occ <- readRDS(paste0(missing_network_dir,"/",basename(monthpath.string),".rds"))
+  occ[,`:=`(AdDate=as.Date(AdDate, format="%m/%d/%Y"),
+            PrimBrandCode=as.integer(PrimBrandCode),
+            ScndBrandCode=as.integer(ScndBrandCode),
+            TerBrandCode=as.integer(TerBrandCode))]
+  prim = merge(product,occ,by.x="BrandCode",by.y="PrimBrandCode", allow.cartesian=T) 
+  scnd = merge(product,occ,by.x="BrandCode",by.y="ScndBrandCode", allow.cartesian=T)
+  ter = merge(product,occ,by.x="BrandCode",by.y="TerBrandCode", allow.cartesian=T)
+  prim$PrimBrandCode = prim$BrandCode
+  scnd$ScndBrandCode = scnd$BrandCode
+  ter$TerBrandCode = ter$BrandCode
+  prodocc = rbind(prim,scnd,ter,fill=T)
   
-  for(j in 1:length(groups)){
-    occfilenames = list.files(pattern = paste0("OCC.*?",groups[j]), path = monthpath.string)
+  impfilename = list.files(pattern = paste0("IMPC.*?",imp_groups[LOCAL_TV]), path = monthpath.string)
+  imp = read_imp(monthpath.string, impfilename)
+  imp = imp[HispanicFlag=='N']
+  #print("error1")
+  keys_imp = c("PeriodYearMonth","DistributorID","DayOfWeek","TimeIntervalNumber")
+  # prodocc[, TimeIntervalNumber:=as.integer(TimeIntervalNumber)] # remove later
+  prodoccimp = merge(prodocc, imp, by=keys_imp)
+  #print("error2")
+  impute_prodoccimp = prodocc[PeriodYearMonth!=basename(monthpath.string)]
+  if(nrow(impute_prodoccimp)>0){
+    prodoccimp2 = impute_imp(impute_prodoccimp, monthpath.string)
+    print(nrow(prodoccimp2))
+    prodoccimp = rbind(prodoccimp, prodoccimp2, fill=T)
+  }
+  
+  uefilename = list.files(pattern = paste0("UE.*?",imp_groups[LOCAL_TV]), path = uepath.string)
+  ue = read_ue(uepath.string, uefilename)
+  prodoccimp[,rollDate:=AdDate]
+  ue[,rollDate:=StartDate]
+  setkey(prodoccimp, MarketCode, HispanicFlag, rollDate)
+  setkey(ue, MarketCode, HispanicFlag, rollDate)
+  prodoccimpue = ue[prodoccimp, roll=TRUE]
+  #print("error3")
+  
+  if(nrow(prodoccimpue)>0){
+    mediatypestr = prodoccimpue$MediaTypeDesc[1]
+    #print("error4")
+    if(!"Spend" %in% names(prodoccimpue)){prodoccimpue[, Spend:=NA]}
+    
+    prodoccimpue[, GRP:=(imp_total/ue_total)*100]
+    prodoccimpue$GRP[is.na(prodoccimpue$GRP)] = 0
+    prodoccimpue[, Week:=ceiling_date(AdDate, "week")]
+    prodoccimpue[, Count:=1]
+    prodoccimpue = prodoccimpue[,.(GRP_sum = sum(GRP, na.rm=T), Spend_sum = sum(Spend, na.rm=T),
+                                   Duration_sum = sum(Duration, na.rm=T), Number = sum(Count, na.rm=T)),
+                                by=c(id_cols,"MediaTypeDesc","DataStreamID","block_missing")]
+    prodoccimpue = dcast(prodoccimpue, as.formula(paste0(paste(c(id_cols,"Spend_sum","Duration_sum","Number"), collapse="+"),
+                                                         " ~ MediaTypeDesc+DataStreamID+block_missing")),
+                         fun=mean, value.var=c("GRP_sum")) 
+    setnames(prodoccimpue, c("Spend_sum", "Duration_sum", "Number"),
+             paste(mediatypestr,c("Spend", "Duration", "Number")))
+    names(prodoccimpue) = sapply(names(prodoccimpue), change_name)
+    
+    # Add block_missing columns
+    # prodoccimpue[, Network Clearance Missing:=
+    
+    if(exists("aggregated")){
+      aggregated = merge(aggregated,prodoccimpue,by=id_cols, all = TRUE)
+    } else {aggregated = prodoccimpue}
+  }
+    
+  # Non-GRP Media (no impressions or UE file) ----------
+  imp2plus = 1
+  occ_group4 = "(NI|LI|TN|TR)"             # Has imp2plus column
+  occ_group5 = "(FS|LM|LN|LS|NM|NN|NS|OU)" # Does not have imp2plus column
+  #occ_group6 = "(LC)"                      # Local/Regional Cable TV doesn't have imp
+  occ_groups = c(occ_group4, occ_group5)
+  
+  for(j in 1:length(occ_groups)){
+    occfilenames = list.files(pattern = paste0("OCC.*?",occ_groups[j]), path = monthpath.string)
     for(occfilename in occfilenames){
       prodocc = join_occ_prod(monthpath.string,occfilename,product)
       
       if(nrow(prodocc)>0){
-        prodocc[, Week:=format(AdDate,format="%W/%Y")]
+        prodocc[, Week:=ceiling_date(AdDate, "week")]
         prodocc = merge(prodocc,mediatype,by="MediaTypeID")
         mediatypestr = prodocc$MediaTypeDesc[1]
         
         if(j==imp2plus){
-          prodocc = prodocc[,.(imp_sum = sum(Imp2Plus), Spend_sum = sum(Spend)),
+          prodocc = prodocc[,.(imp_sum = sum(Imp2Plus, na.rm=T), Spend_sum = sum(Spend, na.rm=T)),
                       by=c(id_cols, "MediaTypeDesc")]
           prodocc = dcast(prodocc, as.formula(paste0(paste(c(id_cols,"Spend_sum"),collapse="+"),"~ MediaTypeDesc")),
                        fun=mean, value.var=c("imp_sum"))
-          setnames(prodocc, c("Spend_sum"),paste(mediatypestr,c("Spend")))
+          setnames(prodocc, c("Spend_sum"), paste(mediatypestr, c("Spend")))
           last_col = length(names(prodocc))
           setnames(prodocc, c(last_col), paste(names(prodocc)[last_col], "Imp"))
         } else {
-          prodocc = prodocc[,.(Spend_sum = sum(Spend)),by=c(id_cols, "MediaTypeDesc")]
+          prodocc = prodocc[,.(Spend_sum = sum(Spend)), by=c(id_cols, "MediaTypeDesc")]
           prodocc = dcast(prodocc, as.formula(paste0(paste(id_cols,collapse="+"),"~ MediaTypeDesc")),
                        fun=mean, value.var=c("Spend_sum"))
           last_col = length(names(prodocc))
@@ -314,7 +400,7 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
         
         # Merge to build data
         if(exists("aggregated")){
-          aggregated = merge(aggregated,prodocc,by=id_cols,all = TRUE)
+          aggregated = merge(aggregated,prodocc,by=id_cols,all=TRUE)
         } else {aggregated = prodocc}
       }
     }
@@ -336,17 +422,13 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
     aggregated[, MarketCode:=as.integer(MarketCode)]
     rm(aggregated2)
     
+    # Save RDS file for the month to output_dir
     print(paste("Saving",basename(monthpath.string)))
-    saveRDS(aggregated, paste0(output_dir,"/",basename(monthpath.string),"_aggregated.rds"))
+    #saveRDS(aggregated, paste0(output_dir,"/",basename(monthpath.string),"_aggregated.rds"))
+    saveRDS(aggregated, "test_aggregated.rds")
     rm(aggregated)
+  } else{
+    print("LIKELY ERROR: aggregated is empty")
   }
 }
 
-## =============================================
-## Rbind month files into one csv file =========
-## =============================================
-print("Combining into one file")
-rdsfiles = list.files(path = output_dir, pattern = ".*?rds", full.names=T)
-rdslist = lapply(rdsfiles, readRDS)
-aggregated_all = rbindlist(rdslist, use.names=T, fill=T)
-write.csv(aggregated_all, paste0(output_dir,"/all_aggregated.csv"), row.names=F)
