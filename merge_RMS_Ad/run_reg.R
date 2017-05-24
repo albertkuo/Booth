@@ -15,19 +15,12 @@ library(xtable)
 library(stargazer)
 
 # Load metadata
-load('./merge_RMS_Ad/merge_metadata/Store-Table-Processed.RData')
+load('./merge_RMS_Ad/data/Store-Table-Processed.RData')
 store_sample = move_store_table[top_90_store==T]$store_code_uc
 
-load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Products-Corrected.RData')
-load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Meta-Data-Corrected.RData')
-meta_data[, product_module_code:=NULL]
-prod_meta = merge(products, meta_data)
-brands_RMS = prod_meta[,.(rev_sum = sum(revenue_RMS)), 
-                       by=c("brand_code_uc","brand_descr",
-                            "product_module_code", "product_module_descr")]
-brands_RMS = brands_RMS[order(-rev_sum)]
+brands_RMS = readRDS('./string_matching/string_matching_app/data/brands_RMS.rds')
 n = 100
-top100_brandcodes = brands_RMS[1:n]$brand_code_uc
+top_brandcodes = brands_RMS[1:n]$brand_code_uc
 
 load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Stores.RData')
 load('./merge_RMS_Ad/data/Store-Address.RData')
@@ -62,7 +55,7 @@ for(k in 1:length(dir_names)){
     brand_code = sub(pattern = "(.*?)\\..*$", replacement = "\\1", basename(filename))
     
     # Only run regression for top 100 brands
-    if(brand_code %in% top100_brandcodes){
+    if(brand_code %in% top_brandcodes){
       results = list()
       print(filename)
       # Select sample

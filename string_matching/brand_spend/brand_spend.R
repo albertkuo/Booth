@@ -1,7 +1,7 @@
 # brand_spend.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2017
+# Date last modified: May 24, 2017
 #
 # This is an R script that computes the spend by brand in Ad Intel data
 
@@ -30,7 +30,7 @@ for(filename in filenames){
     spend = temp
   }
 }
-saveRDS(spend, "brand_spend.rds")
+saveRDS(spend, "./string_matching/brand_spend/brand_spend.rds")
 
 # Get top ten spend brands in each PCCIndusCode
 spend[, spend_sum:=-spend_sum] # Just to get right order
@@ -39,4 +39,4 @@ topten = spend[, head(.SD, 10), by=c('PCCIndusCode','PCCIndusDesc')]
 spend[, spend_sum:=-spend_sum]
 topten[, spend_sum:=-spend_sum]
 setkey(spend, spend_sum)
-write.csv(topten, file = "brand_spend_topten.csv", row.names=F)
+# write.csv(topten, file = "brand_spend_topten.csv", row.names=F)
