@@ -1,7 +1,7 @@
 # ad_extract.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2017
+# Date last modified: May 24, 2017
 #
 # Read Ad Intel files and extract data corresponding to brands found in Brand Aggregates
 # Save brand extracts in aggregated_extracts to be used later in merge_RMS_Ad.R
@@ -19,7 +19,7 @@ for(i in 1:length(RMS_filenames)){
   brand_codes[[i]] = sub(pattern = "(.*?)\\..*$", replacement = "\\1", basename(RMS_filename))
   dir_names[[i]] = sub('.*/(.*)','\\1', dirname(RMS_filename))
 }
-string_matches = fread('~/string_matching/string_matches.csv')
+string_matches = fread('./string_matching/string_matches.csv')
 
 # Parameters
 datastream = 2 # datastream to use for National TV, note that Local TV only has Datastream = 3

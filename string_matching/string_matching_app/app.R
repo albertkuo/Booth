@@ -1,4 +1,3 @@
-#
 # This is a Shiny web application. You can run the application by clicking
 # the 'Run App' button above.
 #
@@ -8,7 +7,11 @@
 #
 # To deploy application to shinyapps, run the following:
 # library(rsconnect)
-# rsconnect::deployApp('~/Booth/string_matching/string_matching_app/')
+# rsconnect::deployApp('./string_matching/string_matching_app/')
+#
+# -----------------------------------------------------------------------------
+# Author:             Albert Kuo
+# Date last modified: Apr 26, 2017
 
 library(bit64)
 library(DT)

@@ -1,7 +1,7 @@
 # extract_missing.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 9, 2016
+# Date last modified: May 24, 2017
 #
 # This is an R script that finds and extracts
 # non matching Network and Syndicated occurrences.
@@ -14,8 +14,8 @@ library(lubridate)
 registerDoParallel(cores = NULL)
 
 # Time Zones
-time_zones = fread("~/merge_metadata/DMA_and_recording_method.csv")
-time_intervals = fread("~/merge_metadata/Time_Interval_spot.csv")
+time_zones = fread("./build_Ad/data/DMA_and_recording_method.csv")
+time_intervals = fread("./build_Ad/data/Time_Interval_spot.csv")
 
 # Path names for traversal through year and month directories ----------
 source_dir = "/nielsen_raw/Ad_Intel"

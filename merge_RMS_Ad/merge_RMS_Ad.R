@@ -1,7 +1,7 @@
 # merge_RMS_Ad.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2017
+# Date last modified: May 24, 2017
 #
 # This is an R script that merges RMS and Ad Intel based on brand, market, week
 # Run aggregate_RMS.R and ad_extract.R and ad_extract_save.R prior to this
@@ -18,11 +18,11 @@ run_grid = T
 if(!run_grid){
   dir_name = 1484
   brand_code = 531429
-  RMS_data = readRDS("Booth/merge_RMS_Ad/531429.rds")
-  Ad_data = readRDS("Booth/merge_RMS_Ad/201206_aggregated.rds")
-  load("Booth/merge_RMS_Ad/Stores.RData")        #stores
-  load("Booth/merge_RMS_Ad/Store-Address.RData") #store_info
-  string_matches = fread("Booth/string_matching/string_matches.csv")
+  RMS_data = readRDS("./merge_RMS_Ad/531429.rds")
+  Ad_data = readRDS("./merge_RMS_Ad/201206_aggregated.rds")
+  load("./merge_RMS_Ad/Stores.RData")        #stores
+  load("./merge_RMS_Ad/Store-Address.RData") #store_info
+  string_matches = fread("./string_matching/string_matches.csv")
 } 
 
 # Read files
@@ -35,7 +35,7 @@ load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Stores.RData')
 store_dma_mapping = stores[, c("store_code_uc", "year", "dma_code"), with=F]
 setkey(store_dma_mapping)
 store_dma_mapping = unique(store_dma_mapping)
-string_matches = fread('~/string_matching/string_matches.csv')
+string_matches = fread('./string_matching/string_matches.csv')
 
 # Set parameters
 weight = 0.9 # Weight for ad stock

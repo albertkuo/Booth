@@ -1,7 +1,7 @@
 # build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 17, 2016
+# Date last modified: May 17, 2017
 #
 # This is an R script that will build R Formatted Ad Intel Files
 # using Nielsen_Raw tsv formatted files.
@@ -317,11 +317,8 @@ for(i in 1:1){
   impfilename = list.files(pattern = paste0("IMPC.*?",imp_groups[LOCAL_TV]), path = monthpath.string)
   imp = read_imp(monthpath.string, impfilename)
   imp = imp[HispanicFlag=='N']
-  #print("error1")
   keys_imp = c("PeriodYearMonth","DistributorID","DayOfWeek","TimeIntervalNumber")
-  # prodocc[, TimeIntervalNumber:=as.integer(TimeIntervalNumber)] # remove later
   prodoccimp = merge(prodocc, imp, by=keys_imp)
-  #print("error2")
   impute_prodoccimp = prodocc[PeriodYearMonth!=basename(monthpath.string)]
   if(nrow(impute_prodoccimp)>0){
     prodoccimp2 = impute_imp(impute_prodoccimp, monthpath.string)
@@ -336,11 +333,9 @@ for(i in 1:1){
   setkey(prodoccimp, MarketCode, HispanicFlag, rollDate)
   setkey(ue, MarketCode, HispanicFlag, rollDate)
   prodoccimpue = ue[prodoccimp, roll=TRUE]
-  #print("error3")
   
   if(nrow(prodoccimpue)>0){
     mediatypestr = prodoccimpue$MediaTypeDesc[1]
-    #print("error4")
     if(!"Spend" %in% names(prodoccimpue)){prodoccimpue[, Spend:=NA]}
     
     prodoccimpue[, GRP:=(imp_total/ue_total)*100]
@@ -357,7 +352,7 @@ for(i in 1:1){
              paste(mediatypestr,c("Spend", "Duration", "Number")))
     names(prodoccimpue) = sapply(names(prodoccimpue), change_name)
     
-    # Add block_missing columns
+    # Add block_missing columns?
     # prodoccimpue[, Network Clearance Missing:=
     
     if(exists("aggregated")){

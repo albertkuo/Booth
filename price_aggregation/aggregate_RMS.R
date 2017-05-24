@@ -1,7 +1,7 @@
 # merge_RMS_Ad.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2017
+# Date last modified: May 24, 2017
 #
 # This R script handles price and quantity aggregation in RMS and Homescan Data
 
@@ -15,15 +15,15 @@ registerDoParallel(cores = NULL)
 run_grid = T
 
 if(!run_grid){
-  load('Booth/string_matching/data/Products-Corrected.RData')
+  load('./string_matching/data/Products-Corrected.RData')
   # Sample file
-  load('Booth/price_aggregation/1356240001.RData')
+  load('./price_aggregation/1356240001.RData')
 } else {
   load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Products-Corrected.RData')
   # Get top n brands and their competitors to aggregate
   n = 300
-  competitors_RMS = readRDS('~/string_matching/string_matching_app/data/top_brands.rds')
-  brands_RMS = readRDS('~/string_matching/string_matching_app/data/brands_RMS.rds')
+  competitors_RMS = readRDS('./string_matching/string_matching_app/data/top_brands.rds')
+  brands_RMS = readRDS('./string_matching/string_matching_app/data/brands_RMS.rds')
   topmodulenames = brands_RMS$product_module_descr[1:n]
   competitors_RMS = competitors_RMS[product_module_descr %in% topmodulenames]
   setorder(competitors_RMS, rev_sum)

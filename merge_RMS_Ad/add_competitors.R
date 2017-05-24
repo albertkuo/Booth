@@ -54,7 +54,7 @@ for(k in 1:length(dir_names)){
   }
   competitors_DT = rbindlist(competitors_datalist)
 
-  # Read brands in top 100 and add competitors for them
+  # Read brands in top n and add competitors for them
   if(length(merged_filenames)>1){
     for(i in 1:length(merged_filenames)){
       merged_filename = merged_filenames[[i]]

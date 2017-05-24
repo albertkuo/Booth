@@ -1,7 +1,7 @@
 # # run_reg.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2017
+# Date last modified: May 24, 2017
 #
 # This is an R script that runs regression for a brand
 # using data built from merge_RMS_Ad.R and add_competitors.R
@@ -14,8 +14,8 @@ library(data.table)
 library(xtable)
 library(stargazer)
 
-# Metadata
-load('~/merge_RMS_Ad/merge_metadata/Store-Table-Processed.RData')
+# Load metadata
+load('./merge_RMS_Ad/merge_metadata/Store-Table-Processed.RData')
 store_sample = move_store_table[top_90_store==T]$store_code_uc
 
 load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Products-Corrected.RData')
@@ -30,8 +30,8 @@ n = 100
 top100_brandcodes = brands_RMS[1:n]$brand_code_uc
 
 load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Stores.RData')
-load('~/merge_RMS_Ad/merge_metadata/Store-Address.RData')
-zipborders = fread('~/merge_RMS_Ad/merge_metadata/zipborders.csv')
+load('./merge_RMS_Ad/data/Store-Address.RData')
+zipborders = fread('./merge_RMS_Ad/data/zipborders.csv')
 
 stores = stores[, c("store_code_uc","year","store_zip3","fips_state_code","fips_county_code"), with=F]
 store_info[, Year:=strtoi(substring(DATE, 0, 4), base=10)]

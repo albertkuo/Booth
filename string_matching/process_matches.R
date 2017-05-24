@@ -1,7 +1,7 @@
 # process_matches.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2017
+# Date last modified: May 24, 2017
 #
 # This is an R script that processes the manual matches
 # into a simplified and more usable format.
@@ -11,7 +11,7 @@
 library(data.table)
 library(bit64)
 
-source_dir = "~/Booth/string_matching"
+source_dir = "./string_matching"
 
 # Process matches to get product_module_code (only do this once and then save string_matches file)
 string_matches = fread(paste0(source_dir, "/matches_files/all.csv"))

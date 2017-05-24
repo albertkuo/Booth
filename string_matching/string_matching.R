@@ -1,7 +1,7 @@
 # string_matching.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2017
+# Date last modified: May 24, 2017
 #
 # This is an R script that creates data files for the Shiny string_matching app
 
@@ -12,7 +12,7 @@ library(data.table)
 library(dplyr)
 library(bit64)
 
-source_dir = "~/Booth/string_matching"
+source_dir = "./string_matching"
 
 # Additional data to help with matching
 pccs = fread(paste0(source_dir, '/data/highlighted_categories.csv'))
