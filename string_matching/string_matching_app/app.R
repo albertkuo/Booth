@@ -231,6 +231,9 @@ server <- shinyServer(function(input, output, session) {
     ad_matches = revals$hot
     ad_matches = ad_matches[ad_matches$match_tier!=0,]
     queryrow = queryrow()
+    if(!"prop_revenue_avg" %in% queryrow){
+      queryrow$prop_revenue_avg = NA
+    }
     queryrow = queryrow[rep(1,nrow(ad_matches)),]
     save_ad_matches = cbind(queryrow,ad_matches)
     save_ad_matches
