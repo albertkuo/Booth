@@ -1,7 +1,7 @@
 # build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 17, 2017
+# Date last modified: June 13, 2017
 #
 # This is an R script that will build R Formatted Ad Intel Files
 # using Nielsen_Raw tsv formatted files.
@@ -240,7 +240,7 @@ for(i in 1:1){
         imp = imp[HispanicFlag=='N'] # 'Y' is a subset of 'N'
         keys_imp = c("PeriodYearMonth","DistributorID","DayOfWeek","TimeIntervalNumber")
         prodoccimp = merge(prodocc, imp, by=keys_imp)
-      
+        
         # Impute by sending orphan occurrences to a function
         impute_prodoccimp = prodocc[PeriodYearMonth!=basename(monthpath.string)]
         if(nrow(impute_prodoccimp)>0){
@@ -281,11 +281,11 @@ for(i in 1:1){
         prodoccimpue[, Week:=ceiling_date(AdDate, "week")]
         prodoccimpue[, Count:=1]
         prodoccimpue = prodoccimpue[,.(GRP_sum = sum(GRP, na.rm=T), Spend_sum = sum(Spend, na.rm=T),
-                       Duration_sum = sum(Duration, na.rm=T), Number = sum(Count, na.rm=T)),
-                    by=c(id_cols,"MediaTypeDesc","DataStreamID")]
+                                       Duration_sum = sum(Duration, na.rm=T), Number = sum(Count, na.rm=T)),
+                                    by=c(id_cols,"MediaTypeDesc","DataStreamID")]
         # Use fun=mean because all the values are the same
         prodoccimpue = dcast(prodoccimpue, as.formula(paste0(paste(c(id_cols,"Spend_sum","Duration_sum","Number"), collapse="+"),
-                                             " ~ MediaTypeDesc+DataStreamID")),
+                                                             " ~ MediaTypeDesc+DataStreamID")),
                              fun=mean, value.var=c("GRP_sum")) 
         
         # Merge to build data
@@ -317,6 +317,8 @@ for(i in 1:1){
   impfilename = list.files(pattern = paste0("IMPC.*?",imp_groups[LOCAL_TV]), path = monthpath.string)
   imp = read_imp(monthpath.string, impfilename)
   imp = imp[HispanicFlag=='N']
+  print(names(imp))
+  print(table(imp$DataStreamID, useNA="always"))
   keys_imp = c("PeriodYearMonth","DistributorID","DayOfWeek","TimeIntervalNumber")
   prodoccimp = merge(prodocc, imp, by=keys_imp)
   impute_prodoccimp = prodocc[PeriodYearMonth!=basename(monthpath.string)]
@@ -325,6 +327,7 @@ for(i in 1:1){
     print(nrow(prodoccimp2))
     prodoccimp = rbind(prodoccimp, prodoccimp2, fill=T)
   }
+  print(table(prodoccimp$DataStreamID, useNA="always"))
   
   uefilename = list.files(pattern = paste0("UE.*?",imp_groups[LOCAL_TV]), path = uepath.string)
   ue = read_ue(uepath.string, uefilename)
@@ -335,21 +338,23 @@ for(i in 1:1){
   prodoccimpue = ue[prodoccimp, roll=TRUE]
   
   if(nrow(prodoccimpue)>0){
-    mediatypestr = prodoccimpue$MediaTypeDesc[1]
-    if(!"Spend" %in% names(prodoccimpue)){prodoccimpue[, Spend:=NA]}
+    mediatypestr = "Network TV Local"
     
     prodoccimpue[, GRP:=(imp_total/ue_total)*100]
     prodoccimpue$GRP[is.na(prodoccimpue$GRP)] = 0
     prodoccimpue[, Week:=ceiling_date(AdDate, "week")]
     prodoccimpue[, Count:=1]
+    print(table(prodoccimpue$DataStreamID, useNA="always"))
     prodoccimpue = prodoccimpue[,.(GRP_sum = sum(GRP, na.rm=T), Spend_sum = sum(Spend, na.rm=T),
                                    Duration_sum = sum(Duration, na.rm=T), Number = sum(Count, na.rm=T)),
                                 by=c(id_cols,"MediaTypeDesc","DataStreamID","block_missing")]
+    print(table(prodoccimpue$DataStreamID, useNA="always"))
     prodoccimpue = dcast(prodoccimpue, as.formula(paste0(paste(c(id_cols,"Spend_sum","Duration_sum","Number"), collapse="+"),
                                                          " ~ MediaTypeDesc+DataStreamID+block_missing")),
                          fun=mean, value.var=c("GRP_sum")) 
     setnames(prodoccimpue, c("Spend_sum", "Duration_sum", "Number"),
              paste(mediatypestr,c("Spend", "Duration", "Number")))
+    print(names(prodoccimpue))
     names(prodoccimpue) = sapply(names(prodoccimpue), change_name)
     
     # Add block_missing columns?
@@ -359,7 +364,7 @@ for(i in 1:1){
       aggregated = merge(aggregated,prodoccimpue,by=id_cols, all = TRUE)
     } else {aggregated = prodoccimpue}
   }
-    
+  
   # Non-GRP Media (no impressions or UE file) ----------
   imp2plus = 1
   occ_group4 = "(NI|LI|TN|TR)"             # Has imp2plus column
@@ -379,16 +384,16 @@ for(i in 1:1){
         
         if(j==imp2plus){
           prodocc = prodocc[,.(imp_sum = sum(Imp2Plus, na.rm=T), Spend_sum = sum(Spend, na.rm=T)),
-                      by=c(id_cols, "MediaTypeDesc")]
+                            by=c(id_cols, "MediaTypeDesc")]
           prodocc = dcast(prodocc, as.formula(paste0(paste(c(id_cols,"Spend_sum"),collapse="+"),"~ MediaTypeDesc")),
-                       fun=mean, value.var=c("imp_sum"))
+                          fun=mean, value.var=c("imp_sum"))
           setnames(prodocc, c("Spend_sum"), paste(mediatypestr, c("Spend")))
           last_col = length(names(prodocc))
           setnames(prodocc, c(last_col), paste(names(prodocc)[last_col], "Imp"))
         } else {
           prodocc = prodocc[,.(Spend_sum = sum(Spend)), by=c(id_cols, "MediaTypeDesc")]
           prodocc = dcast(prodocc, as.formula(paste0(paste(id_cols,collapse="+"),"~ MediaTypeDesc")),
-                       fun=mean, value.var=c("Spend_sum"))
+                          fun=mean, value.var=c("Spend_sum"))
           last_col = length(names(prodocc))
           setnames(prodocc, c(last_col), paste(names(prodocc)[last_col], "Spend"))
         }
