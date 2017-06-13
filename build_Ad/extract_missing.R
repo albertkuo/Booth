@@ -1,7 +1,7 @@
 # extract_missing.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 24, 2017
+# Date last modified: June 13, 2017
 #
 # This is an R script that finds and extracts
 # non matching Network and Syndicated occurrences.
@@ -64,7 +64,6 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
   print(i)
   monthpath.string = monthpath.strings[[i]]
   missing_DT_list = list()
-  # Need to add cache to account for month mismatch between synd/synd_clear!!!
   # Read files
   dis_filename = list.files(pattern="RDC.*?DIS",path=monthpath.string)
   dis <- fread(paste(monthpath.string,dis_filename,dis_filename,sep="/"),showProgress=F)
@@ -74,15 +73,11 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
   national_2 <- fread(paste(monthpath.string,nat_filename,nat_filename,sep="/"),showProgress=F)
   setnames(national_2, "PrimeBrandCode", "PrimBrandCode")
   national = rbind(national, national_2, fill=T)
-  nat_synd_filename = list.files(pattern="OCC.*?BS",path=monthpath.string)
-  nat_synd = fread(paste(monthpath.string,nat_synd_filename,nat_synd_filename,sep="/"),showProgress=F)
   clear_filename = list.files(pattern="OCC.*?NC",path=monthpath.string)
   clear <- fread(paste(monthpath.string,clear_filename,clear_filename,sep="/"),showProgress=F)
   spot_filename = list.files(pattern="OCC.*?SP",path=monthpath.string)
   spot <- fread(paste(monthpath.string,spot_filename,spot_filename,sep="/"),showProgress=F)
-  synd_clear_filename = list.files(pattern="OCC.*?SC",path=monthpath.string)
-  synd_clear <- fread(paste(monthpath.string,synd_clear_filename,synd_clear_filename,sep="/"),showProgress=F)
-  
+
   # Subset Provider (e.g. ABC)
   for(j in 1:length(provider_vec)){
     provider = provider_vec[j]
@@ -112,8 +107,7 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
       #print("Creating data table...")
       ny_clear = clear[DistributorCode %in% dc] #5015 = NY ABC, 5012 = NY CBS, 5060 = Chicago ABC, 5050=Chicago CBS
       ny_spot = spot[DistributorCode %in% dc]
-      ny_synd_clear = synd_clear[DistributorCode %in% dc]
-      ny = rbind(ny_clear, ny_spot, ny_synd_clear, fill=T)
+      ny = rbind(ny_clear, ny_spot, fill=T)
       ny[, time:=mdy_hms(paste(AdDate, AdTime), tz=tz)]
       ny = rbind(network, ny, fill=T)
       media_id_to_desc(ny)
@@ -151,6 +145,7 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
          | (difftime_before<=time_window & 
               shift(MediaTypeDesc, 1, type="lag")=="Network TV" &
               PrimBrandCode==shift(PrimBrandCode, 1, type="lag"))]
+      ny[MediaTypeDesc!="Network Clearance Spot TV", match_network:=NA]
       # This is not perfect (less conservative)
       unmatched_clearance_brands = ny[match_network==FALSE, PrimBrandCode]
       ny[, match_network:=NULL]
