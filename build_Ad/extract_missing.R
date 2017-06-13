@@ -47,8 +47,8 @@ convert_timezone = data.table(time_zones_1=c("ETZ","CTZ","MTZ","PTZ","YTZ","HTZ"
                                              "US/Mountain","US/Pacific",
                                              "US/Alaska","US/Hawaii"))
 get_time_interval = function(AdTime){
-  sapply(AdTime, function(x){time_intervals[(strptime(start_time, "%I:%M %p") <= strptime(x, "%H:%M:%S")) & 
-                                              (strptime(end_time, "%I:%M %p") > strptime(x, "%H:%M:%S"))]$time_interval_number})
+  sapply(AdTime, function(x){time_intervals[(times(start_time) <= times(x)) & 
+                                            (times(end_time) > times(x))]$time_interval_number})
 }
 
 # Variables and Parameters  ----------
