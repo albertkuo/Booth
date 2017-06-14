@@ -1,7 +1,7 @@
 # extract_missing.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 13, 2017
+# Date last modified: June 14, 2017
 #
 # This is an R script that finds and extracts
 # non matching Network and Syndicated occurrences.
@@ -10,6 +10,7 @@ library(foreach)
 library(doParallel)
 library(data.table)
 library(lubridate)
+library(chron)
 
 registerDoParallel(cores = NULL)
 
@@ -48,13 +49,13 @@ convert_timezone = data.table(time_zones_1=c("ETZ","CTZ","MTZ","PTZ","YTZ","HTZ"
                                              "US/Alaska","US/Hawaii"))
 get_time_interval = function(AdTime){
   sapply(AdTime, function(x){time_intervals[(times(start_time) <= times(x)) & 
-                                            (times(end_time) > times(x))]$time_interval_number})
+                                            (times(end_time) >= times(x))]$time_interval_number[1]})
 }
 
 # Variables and Parameters  ----------
 counter = 1
-provider_vec = c("ABC", "NBC", "ION", "FOX", "CW", "CBS") # What about syndicated? 
-provider_code_vec = c("A","N","X","F","Y","C") 
+provider_vec = c("ABC", "NBC", "ION", "FOX", "CW", "CBS", "MT3", "TEL", "UNI", "UMA", "AZA") 
+provider_code_vec = c("A","N","X","F","Y","C", "E", "T", "U", "V", "Z") 
 time_window = 6 # 6 seconds
 
 # Main section  ----------
@@ -86,7 +87,6 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
     
     # Subset Market (e.g. New York)
     for(marketcode in marketcodes){
-      print(marketcode)
       tz = time_zones[MarketCode==marketcode]$time_zone
       tz = convert_timezone[time_zones_1==tz]$time_zones_2
       dc = dis[MarketCode==marketcode & Affiliation==provider]$DistributorCode
@@ -173,6 +173,7 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
                               !non_missing) | block_missing)]
       ny[, block_missing:=(block_missing & !(PrimBrandCode %in% 
                                                unmatched_clearance_brands))]
+      ny[is.na(block_missing), block_missing:=F]
       ny = ny[non_missing==F]
       ny = ny[, .(AdDate, AdTime, MediaTypeID, MediaTypeDesc, 
                   PrimBrandCode, ScndBrandCode, TerBrandCode,
