@@ -283,10 +283,10 @@ for(i in 1:1){
         prodoccimpue = prodoccimpue[,.(GRP_sum = sum(GRP, na.rm=T), Spend_sum = sum(Spend, na.rm=T),
                                        Duration_sum = sum(Duration, na.rm=T), Number = sum(Count, na.rm=T)),
                                     by=c(id_cols,"MediaTypeDesc","DataStreamID")]
-        # Use fun=mean because all the values are the same
+        # Can use fun=sum because all the values are the same
         prodoccimpue = dcast(prodoccimpue, as.formula(paste0(paste(c(id_cols,"Spend_sum","Duration_sum","Number"), collapse="+"),
                                                              " ~ MediaTypeDesc+DataStreamID")),
-                             fun=mean, value.var=c("GRP_sum")) 
+                             fun=sum, value.var=c("GRP_sum")) 
         
         # Merge to build data
         setnames(prodoccimpue, c("Spend_sum", "Duration_sum", "Number"),
@@ -336,7 +336,6 @@ for(i in 1:1){
   
   if(nrow(prodoccimpue)>0){
     mediatypestr = "Network TV Local"
-    
     prodoccimpue[, GRP:=(imp_total/ue_total)*100]
     prodoccimpue$GRP[is.na(prodoccimpue$GRP)] = 0
     prodoccimpue[, Week:=ceiling_date(AdDate, "week")]
@@ -346,7 +345,7 @@ for(i in 1:1){
                                 by=c(id_cols,"MediaTypeDesc","DataStreamID","block_missing")]
     prodoccimpue = dcast(prodoccimpue, as.formula(paste0(paste(id_cols, collapse="+"),
                                                          " ~ MediaTypeDesc+DataStreamID+block_missing")),
-                         fun=mean, value.var=c("GRP_sum", "Spend_sum", "Duration_sum", "Number")) 
+                         fun=sum, value.var=c("GRP_sum", "Spend_sum", "Duration_sum", "Number")) 
     names(prodoccimpue) = sapply(names(prodoccimpue), change_name)
     print(names(prodoccimpue))
     setnames(prodoccimpue, c("GRP_sum_Network TV GRP 3_FALSE", "GRP_sum_Network TV GRP 3_TRUE",
@@ -357,6 +356,7 @@ for(i in 1:1){
                                    "Spend missing", "Spend block_missing",
                                    "Duration missing", "Duration block_missing",
                                    "Number missing", "Number block_missing")))
+    print(summary(prodoccimpue))
     if(exists("aggregated")){
       aggregated = merge(aggregated,prodoccimpue,by=id_cols, all = TRUE)
     } else {aggregated = prodoccimpue}
@@ -383,14 +383,14 @@ for(i in 1:1){
           prodocc = prodocc[,.(imp_sum = sum(Imp2Plus, na.rm=T), Spend_sum = sum(Spend, na.rm=T)),
                             by=c(id_cols, "MediaTypeDesc")]
           prodocc = dcast(prodocc, as.formula(paste0(paste(c(id_cols,"Spend_sum"),collapse="+"),"~ MediaTypeDesc")),
-                          fun=mean, value.var=c("imp_sum"))
+                          fun=sum, value.var=c("imp_sum"))
           setnames(prodocc, c("Spend_sum"), paste(mediatypestr, c("Spend")))
           last_col = length(names(prodocc))
           setnames(prodocc, c(last_col), paste(names(prodocc)[last_col], "Imp"))
         } else {
           prodocc = prodocc[,.(Spend_sum = sum(Spend)), by=c(id_cols, "MediaTypeDesc")]
           prodocc = dcast(prodocc, as.formula(paste0(paste(id_cols,collapse="+"),"~ MediaTypeDesc")),
-                          fun=mean, value.var=c("Spend_sum"))
+                          fun=sum, value.var=c("Spend_sum"))
           last_col = length(names(prodocc))
           setnames(prodocc, c(last_col), paste(names(prodocc)[last_col], "Spend"))
         }
@@ -421,8 +421,8 @@ for(i in 1:1){
     
     # Save RDS file for the month to output_dir
     print(paste("Saving",basename(monthpath.string)))
-    #saveRDS(aggregated, paste0(output_dir,"/",basename(monthpath.string),"_aggregated.rds"))
-    saveRDS(aggregated, "test_aggregated.rds")
+    saveRDS(aggregated, paste0(output_dir,"/",basename(monthpath.string),"_aggregated.rds"))
+    #saveRDS(aggregated, "test_aggregated.rds")
     rm(aggregated)
   } else{
     print("LIKELY ERROR: aggregated is empty")
