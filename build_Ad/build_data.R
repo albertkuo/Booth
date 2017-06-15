@@ -1,7 +1,7 @@
 # build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 13, 2017
+# Date last modified: June 15, 2017
 #
 # This is an R script that will build R Formatted Ad Intel Files
 # using Nielsen_Raw tsv formatted files.
@@ -317,8 +317,6 @@ for(i in 1:1){
   impfilename = list.files(pattern = paste0("IMPC.*?",imp_groups[LOCAL_TV]), path = monthpath.string)
   imp = read_imp(monthpath.string, impfilename)
   imp = imp[HispanicFlag=='N']
-  print(names(imp))
-  print(table(imp$DataStreamID, useNA="always"))
   keys_imp = c("PeriodYearMonth","DistributorID","DayOfWeek","TimeIntervalNumber")
   prodoccimp = merge(prodocc, imp, by=keys_imp)
   impute_prodoccimp = prodocc[PeriodYearMonth!=basename(monthpath.string)]
@@ -327,7 +325,6 @@ for(i in 1:1){
     print(nrow(prodoccimp2))
     prodoccimp = rbind(prodoccimp, prodoccimp2, fill=T)
   }
-  print(table(prodoccimp$DataStreamID, useNA="always"))
   
   uefilename = list.files(pattern = paste0("UE.*?",imp_groups[LOCAL_TV]), path = uepath.string)
   ue = read_ue(uepath.string, uefilename)
@@ -344,22 +341,22 @@ for(i in 1:1){
     prodoccimpue$GRP[is.na(prodoccimpue$GRP)] = 0
     prodoccimpue[, Week:=ceiling_date(AdDate, "week")]
     prodoccimpue[, Count:=1]
-    print(table(prodoccimpue$DataStreamID, useNA="always"))
     prodoccimpue = prodoccimpue[,.(GRP_sum = sum(GRP, na.rm=T), Spend_sum = sum(Spend, na.rm=T),
                                    Duration_sum = sum(Duration, na.rm=T), Number = sum(Count, na.rm=T)),
                                 by=c(id_cols,"MediaTypeDesc","DataStreamID","block_missing")]
-    print(table(prodoccimpue$DataStreamID, useNA="always"))
-    prodoccimpue = dcast(prodoccimpue, as.formula(paste0(paste(c(id_cols,"Spend_sum","Duration_sum","Number"), collapse="+"),
+    prodoccimpue = dcast(prodoccimpue, as.formula(paste0(paste(id_cols, collapse="+"),
                                                          " ~ MediaTypeDesc+DataStreamID+block_missing")),
-                         fun=mean, value.var=c("GRP_sum")) 
-    setnames(prodoccimpue, c("Spend_sum", "Duration_sum", "Number"),
-             paste(mediatypestr,c("Spend", "Duration", "Number")))
-    print(names(prodoccimpue))
+                         fun=mean, value.var=c("GRP_sum", "Spend_sum", "Duration_sum", "Number")) 
     names(prodoccimpue) = sapply(names(prodoccimpue), change_name)
-    
-    # Add block_missing columns?
-    # prodoccimpue[, Network Clearance Missing:=
-    
+    print(names(prodoccimpue))
+    setnames(prodoccimpue, c("GRP_sum_Network TV GRP 3_FALSE", "GRP_sum_Network TV GRP 3_TRUE",
+                             "Spend_sum_Network TV GRP 3_FALSE", "Spend_sum_Network TV GRP 3_TRUE",
+                             "Duration_sum_Network TV GRP 3_FALSE", "Duration_sum_Network TV GRP 3_TRUE",
+                             "Number_Network TV GRP 3_FALSE", "Number_Network TV GRP 3_TRUE"),
+             paste(mediatypestr, c("GRP 3 missing", "GRP 3 block_missing",
+                                   "Spend missing", "Spend block_missing",
+                                   "Duration missing", "Duration block_missing",
+                                   "Number missing", "Number block_missing")))
     if(exists("aggregated")){
       aggregated = merge(aggregated,prodoccimpue,by=id_cols, all = TRUE)
     } else {aggregated = prodoccimpue}
