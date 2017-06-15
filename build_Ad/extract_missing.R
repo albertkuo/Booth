@@ -1,7 +1,7 @@
 # extract_missing.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 14, 2017
+# Date last modified: June 15, 2017
 #
 # This is an R script that finds and extracts
 # non matching Network and Syndicated occurrences.
@@ -37,6 +37,7 @@ for(i in 1:length(years)){
 # Helper functions ----------
 media_id_to_desc = function(DT){
   DT[MediaTypeID==1, MediaTypeDesc:="Network TV"]
+  DT[MediaTypeID==4, MediaTypeDesc:="Network TV"] # Spanish Language
   DT[MediaTypeID==13, MediaTypeDesc:="Network Clearance Spot TV"]
   DT[MediaTypeID==5, MediaTypeDesc:="Spot TV"]
   DT[MediaTypeID==14, MediaTypeDesc:="Syndicated Clearance"]
@@ -62,9 +63,10 @@ time_window = 6 # 6 seconds
 foreach(i = 1:length(monthpath.strings)) %dopar% { 
 #for(i in 1:length(monthpath.strings)){
 #for(i in 1:1){
-  print(i)
   monthpath.string = monthpath.strings[[i]]
+  print(basename(monthpath.string))
   missing_DT_list = list()
+  
   # Read files
   dis_filename = list.files(pattern="RDC.*?DIS",path=monthpath.string)
   dis <- fread(paste(monthpath.string,dis_filename,dis_filename,sep="/"),showProgress=F)
@@ -87,6 +89,7 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
     
     # Subset Market (e.g. New York)
     for(marketcode in marketcodes){
+      #print(marketcode)
       tz = time_zones[MarketCode==marketcode]$time_zone
       tz = convert_timezone[time_zones_1==tz]$time_zones_2
       dc = dis[MarketCode==marketcode & Affiliation==provider]$DistributorCode
@@ -188,5 +191,6 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
     }
   }
   missing_DT_all = rbindlist(missing_DT_list, fill=T)
+  print(paste("Saving",basename(monthpath.string)))
   saveRDS(missing_DT_all, paste0(output_dir,"/",basename(monthpath.string),".rds"))
 }
