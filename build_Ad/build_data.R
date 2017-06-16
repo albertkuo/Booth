@@ -176,9 +176,9 @@ impute_imp <- function(prodocc, monthpath.string){
 ## =================================================================
 ## Traverse through year and month directories in parallel =========
 ## =================================================================
-# Parallelization stops running before all months are done, need to fix; works when not in parallel
-foreach(i = 1:length(monthpath.strings)) %dopar% { 
-#for(i in 1:length(monthpath.strings)){
+# Parallelization stops running before all months are done for some reason
+#foreach(i = 1:length(monthpath.strings)) %dopar% { 
+for(i in 1:length(monthpath.strings)){
 #for(i in 1:1){
   monthpath.string = monthpath.strings[[i]]
   uepath.string = paste(dirname(monthpath.string), "UE", sep="/")
@@ -245,7 +245,6 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
         impute_prodoccimp = prodocc[PeriodYearMonth!=basename(monthpath.string)]
         if(nrow(impute_prodoccimp)>0){
           prodoccimp2 = impute_imp(impute_prodoccimp, monthpath.string)
-          print(nrow(prodoccimp2))
           prodoccimp = rbind(prodoccimp, prodoccimp2, fill=T)
         }
         
@@ -299,7 +298,6 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
   }
   
   # Using National TV as Local TV ----------
-  print("New section...")
   occ <- readRDS(paste0(missing_network_dir,"/",basename(monthpath.string),".rds"))
   occ[,`:=`(AdDate=as.Date(AdDate, format="%m/%d/%Y"),
             PrimBrandCode=as.integer(PrimBrandCode),
@@ -321,7 +319,6 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
   impute_prodoccimp = prodocc[PeriodYearMonth!=basename(monthpath.string)]
   if(nrow(impute_prodoccimp)>0){
     prodoccimp2 = impute_imp(impute_prodoccimp, monthpath.string)
-    print(nrow(prodoccimp2))
     prodoccimp = rbind(prodoccimp, prodoccimp2, fill=T)
   }
   
@@ -351,10 +348,10 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
                              "Spend_sum_Network TV GRP 3_FALSE", "Spend_sum_Network TV GRP 3_TRUE",
                              "Duration_sum_Network TV GRP 3_FALSE", "Duration_sum_Network TV GRP 3_TRUE",
                              "Number_Network TV GRP 3_FALSE", "Number_Network TV GRP 3_TRUE"),
-             paste(mediatypestr, c("GRP 3 missing", "GRP 3 block_missing",
-                                   "Spend missing", "Spend block_missing",
-                                   "Duration missing", "Duration block_missing",
-                                   "Number missing", "Number block_missing")))
+             paste(mediatypestr, c("missing GRP 3", "block_missing GRP 3",
+                                   "missing Spend", "block_missing Spend",
+                                   "missing Duration", "block_missing Duration",
+                                   "missing Number", "block_missing Number")))
     if(exists("aggregated")){
       aggregated = merge(aggregated,prodoccimpue,by=id_cols, all = TRUE)
     } else {aggregated = prodoccimpue}

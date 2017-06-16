@@ -23,6 +23,11 @@ string_matches = fread('./string_matching/string_matches.csv')
 
 # Parameters
 datastream = 2 # datastream to use for National TV, note that Local TV only has Datastream = 3
+network_missing_option = 1 # whether we use missing, block_missing, or none to fill in Network TV
+missing_colnames_list = list(c("Network TV Local missing"),
+                                c("Network TV Local block_missing"),
+                                c())
+missing_colnames = missing_colnames_list[[network_missing_option]]
 
 prod_cols = c("BrandDesc","BrandVariant",
               "AdvParentCode","AdvParentDesc","AdvSubsidCode","AdvSubsidDesc",
@@ -44,27 +49,26 @@ for(i in 1:length(ad_filenames)){
       ad_data = ad_data_full[BrandCode %in% brand_matches]
 
       if(nrow(ad_data)>0){
+        national_colnames = c("Cable TV", "Spanish Language Cable TV")
+        local_colnames = c("Network Clearance Spot TV", "Syndicated Clearance Spot TV", "Spot TV",
+                           missing_colnames)
+        
         ad_data[, National_GRP:=rowSums(.SD, na.rm=T),
-                .SDcols = paste(c("Cable TV GRP","Spanish Language Cable TV GRP"), datastream)]
+                .SDcols = paste(national_colnames, "GRP", datastream)]
         ad_data[, Local_GRP:=rowSums(.SD, na.rm=T),
-                .SDcols = c("Network Clearance Spot TV GRP 3", "Syndicated Clearance Spot TV GRP 3",
-                            "Spot TV GRP 3")]
+                .SDcols = paste(local_colnames, "GRP 3")]
 
         ad_data[, National_occ:=rowSums(.SD, na.rm=T),
-                .SDcols = c("Network TV Duration","Syndicated TV Duration","Cable TV Duration",
-                           "Spanish Language Cable TV Duration", "Spanish Language Network TV Duration")]
+                .SDcols = paste(national_colnames, "Duration")]
         ad_data[, National_occ:=National_occ/30]
         ad_data[, Local_occ:=rowSums(.SD, na.rm=T),
-                .SDcols = c("Network Clearance Spot TV Duration", "Syndicated Clearance Spot TV Duration",
-                            "Spot TV Duration")]
+                .SDcols = paste(local_colnames, "Duration")]
         ad_data[, Local_occ:=Local_occ/30]
         
         ad_data[, National_spend:=rowSums(.SD, na.rm=T),
-                .SDcols = c("Network TV Spend","Syndicated TV Spend","Cable TV Spend",
-                            "Spanish Language Cable TV Spend", "Spanish Language Network TV Spend")]
+                .SDcols = paste(national_colnames, "Spend")]
         ad_data[, Local_spend:=rowSums(.SD, na.rm=T),
-                .SDcols = c("Network Clearance Spot TV Spend", "Syndicated Clearance Spot TV Spend",
-                            "Spot TV Spend")]
+                .SDcols = paste(local_colnames, "Spend")]
 
         ad_data = ad_data[, c("BrandCode", "Week", "MarketCode",
                               "National_GRP", "Local_GRP",
