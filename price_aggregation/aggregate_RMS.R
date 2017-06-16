@@ -1,10 +1,12 @@
 # merge_RMS_Ad.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 24, 2017
+# Date last modified: June 16, 2017
 #
 # This R script handles price and quantity aggregation in RMS and Homescan Data
+# It only aggregates the RMS brands that have been matched with string_matching_app
 
+## Set-up ---------------------
 library(bit64)
 library(data.table)
 library(foreach)
@@ -20,20 +22,15 @@ if(!run_grid){
   load('./price_aggregation/1356240001.RData')
 } else {
   load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Products-Corrected.RData')
-  # Get top n brands and their competitors to aggregate
-  n = 300
-  competitors_RMS = readRDS('./string_matching/string_matching_app/data/top_brands.rds')
-  brands_RMS = readRDS('./string_matching/string_matching_app/data/brands_RMS.rds')
-  topmodulenames = brands_RMS$product_module_descr[1:n]
-  competitors_RMS = competitors_RMS[product_module_descr %in% topmodulenames]
-  setorder(competitors_RMS, rev_sum)
-  topbrandcodes = competitors_RMS$brand_code_uc
-  topmodulecodes = lapply(competitors_RMS$product_module_descr, 
-                          function(x){products[product_module_descr==x]$product_module_code[1]})
+  # Get list of brands to aggregate from string_matches
+  string_matches = fread("./string_matching/string_matches.csv")
+  topbrandcodes = unique(string_matches$brand_code_uc)
+  topmodulecodes = unique(string_matches$product_module_code)
   # Only keep necessary products columns
   products = products[, c("upc", "upc_ver_uc_corrected", "product_module_code",
                           "multi", "size1_amount", "brand_code_uc_corrected", 
                           "dataset_found_uc"), with=F]
+  products = unique(products, by=c("upc", "upc_ver_uc_corrected"))
 }
 
 source_dir = '/grpshares/ghitsch/data/RMS-Build-2016/RMS-Processed/Modules'
@@ -142,8 +139,9 @@ brand_upcs = function(brand_code, module_code){
   return(upc_list)
 }
 
-#foreach(k = length(topbrandcodes):1) %dopar% { 
-for(k in length(topbrandcodes):1){ 
+## Main section -------------------------------
+#foreach(k = 1:length(topbrandcodes)) %dopar% { 
+for(k in 1:length(topbrandcodes)){ 
 #for(k in 1:1){
   print(k)
   brand_code = topbrandcodes[[k]] # Bud light = 520795, Coca-Cola R = 531429
@@ -158,28 +156,27 @@ for(k in length(topbrandcodes):1){
   upc_files = list()
   for(i in 1:length(upc_filenames)){
     filename = upc_filenames[[i]]
+    # File might not exist because RMS-Processed doesn't contain all brands
     if(file.exists(filename)){
       load(filename)
       move = move[, c("upc", "upc_ver_uc_corrected", "store_code_uc",
                       "week_end", "base_price", "imputed_price", "units", "processed"),
                   with=F]
       upc_files[[i]] = copy(move)
-    } else {
-      #print(paste(basename(filename), "doesn't exist."))
     }
   }
   
   print("Bind product files...")
   DT = rbindlist(upc_files)
+  rm(upc_files)
   print(nrow(DT))
   if(nrow(DT)>0){
     print("Fill NA...")
     Fill.NA.Prices(DT)
     row_DT = nrow(DT)
     print("Merge to products...")
-    DT = merge(DT, products, by=c("upc","upc_ver_uc_corrected"), allow.cartesian=T)
+    DT = merge(DT, products, by=c("upc","upc_ver_uc_corrected")) # removed allow.cartesian=T
     DT[, dataset_found_uc:=NULL]
-    # Some products belong to multiple brands when upc_ver changes? 
     DT = DT[brand_code_uc_corrected==brand_code]
     print(nrow(DT))
     print("Begin aggregation...")
@@ -195,6 +192,6 @@ for(k in length(topbrandcodes):1){
   } else {
     print("Skipping aggregating -- no non-other upc files for brand")
   }
-  gc()
+  #gc()
 }
 
