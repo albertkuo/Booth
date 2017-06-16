@@ -1,7 +1,7 @@
 # # run_reg.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 24, 2017
+# Date last modified: June 16, 2017
 #
 # This is an R script that runs regression for a brand
 # using data built from merge_RMS_Ad.R and add_competitors.R
@@ -54,12 +54,21 @@ for(k in 1:length(dir_names)){
     filename = build_filenames[[i]]
     brand_code = sub(pattern = "(.*?)\\..*$", replacement = "\\1", basename(filename))
     
-    # Only run regression for top 100 brands
+    # Only run regression for top n brands
     if(brand_code %in% top_brandcodes){
       results = list()
       print(filename)
-      # Select sample
       brand_data = readRDS(filename)
+      # Dcast competitors into wide format
+      brand_data = brand_data[, .(units = sum(units), price = mean(price),
+                                  promo_percentage = mean(promo_percentage),
+                                  Total_GRP = sum(Total_GRP), Total_occ = sum(Total_occ)),
+                              by = .(store_code_uc, dma_code, week_end, year, brand_type)] 
+      brand_data = dcast(brand_data, store_code_uc + dma_code + week_end + year ~ brand_type,
+                         value.var = list("units", "price", "promo_percentage","Total_GRP","Total_occ"))
+      brand_data[, units_comp:=NULL]
+      setnames(brand_data, c("units_own"), c("units"))
+      # Subset data
       brand_data = brand_data[store_code_uc %in% store_sample]
       brand_data = brand_data[year>=2010]
       # Process variables
@@ -139,5 +148,3 @@ print(coeffs_own_GRP)
 # also works, since R’s parser does not keep the order. This means that in interactions, the factor must
 # be a factor, whereas a non-interacted factor will be coerced to a factor. I.e. in y ~ x1 | x:f1 + f2,
 # the f1 must be a factor, whereas it will work as expected if f2 is an integer vector.
-
-

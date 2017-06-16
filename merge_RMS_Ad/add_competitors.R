@@ -1,7 +1,7 @@
 # add_competitors.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 22, 2017
+# Date last modified: June 16, 2017
 #
 # This is an R script that adds competitor values
 # after data is built the first time with merge_RMS_Ad.R
@@ -70,15 +70,6 @@ for(k in 1:length(dir_names)){
         brand_data[, brand_type:="comp"]
         brand_data[brand_code_uc_corrected == RMS_brand, brand_type:="own"]
         
-        # dcast
-        brand_data = brand_data[, .(units = sum(units), price = mean(price),
-                                    promo_percentage = mean(promo_percentage),
-                                    Total_GRP = sum(Total_GRP), Total_occ = sum(Total_occ)),
-                                by = .(store_code_uc, dma_code, week_end, year, brand_type)] 
-        brand_data = dcast(brand_data, store_code_uc + dma_code + week_end + year ~ brand_type,
-                           value.var = list("units", "price", "promo_percentage","Total_GRP","Total_occ"))
-        brand_data[, units_comp:=NULL]
-        setnames(brand_data, c("units_own"), c("units"))
         print("Saving with competitors...")
         saveRDS(brand_data, file=paste0(file.path(output_dir, dir_name), "/",
                                         RMS_brand, ".rds"))
