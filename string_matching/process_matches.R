@@ -26,7 +26,7 @@ string_matches[, product_module_descr:=NULL]
 # Correct brands from brand_code_uc to brand_code_uc_corrected
 product_brands = unique(products, by=c("brand_code_uc", "brand_code_uc_corrected"))
 product_brands = products[, c("brand_code_uc", "brand_code_uc_corrected"), with=F]
-string_matches = merge(string_matches, product_brands, by="brand_code_uc")
+string_matches = merge(string_matches, product_brands, by="brand_code_uc", allow.cartesian=T)
 string_matches[, brand_code_uc:=NULL]
 setkey(string_matches)
 string_matches = unique(string_matches)
