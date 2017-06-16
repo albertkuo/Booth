@@ -3,7 +3,7 @@
 # Author:             Albert Kuo
 # Date last modified: June 16, 2017
 #
-# Read Ad Intel files and extract data corresponding to brands found in Brand Aggregates
+# Read Ad Intel files and extract data corresponding to brands found in Brand-Aggregates
 # Save brand extracts in aggregated_extracts to be used later in merge_RMS_Ad.R
 
 library(data.table)
@@ -38,8 +38,6 @@ for(i in 1:length(ad_filenames)){
   for(j in 1:length(brand_codes)){
     RMS_brand_code = brand_codes[[j]]
     dir_name = dir_names[[j]]
-    #print(RMS_brand_code)
-    #print(dir_name)
     brand_matches = unique(string_matches[brand_code_uc_corrected==RMS_brand_code &
                                             product_module_code==dir_name]$BrandCode)
     if(length(brand_matches)>0){
@@ -74,12 +72,12 @@ for(i in 1:length(ad_filenames)){
                               "National_spend", "Local_spend"), with=F]
 
         dir.create(file.path(ad_output_dir, "aggregated_extracts", toString(dir_name)), showWarnings = FALSE)
-        #print(nrow(ad_data))
+        print(nrow(ad_data))
         write.csv(ad_data, paste0(file.path(ad_output_dir, "aggregated_extracts", toString(dir_name)), "/",
                                   RMS_brand_code, "_", toString(i), ".csv"), row.names=F)
       }
     } else {
-      #print("No string matches")
+      print("No string matches")
     }
   }
 }
