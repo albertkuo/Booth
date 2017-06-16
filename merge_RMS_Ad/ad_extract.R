@@ -1,7 +1,7 @@
 # ad_extract.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 24, 2017
+# Date last modified: June 16, 2017
 #
 # Read Ad Intel files and extract data corresponding to brands found in Brand Aggregates
 # Save brand extracts in aggregated_extracts to be used later in merge_RMS_Ad.R
@@ -40,7 +40,7 @@ for(i in 1:length(ad_filenames)){
     dir_name = dir_names[[j]]
     #print(RMS_brand_code)
     #print(dir_name)
-    brand_matches = unique(string_matches[brand_code_uc==RMS_brand_code &
+    brand_matches = unique(string_matches[brand_code_uc_corrected==RMS_brand_code &
                                             product_module_code==dir_name]$BrandCode)
     if(length(brand_matches)>0){
       ad_data = ad_data_full[BrandCode %in% brand_matches]

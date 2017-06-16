@@ -1,7 +1,7 @@
 # merge_RMS_Ad.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: May 24, 2017
+# Date last modified: June 16, 2017
 #
 # This is an R script that merges RMS and Ad Intel based on brand, market, week
 # Run aggregate_RMS.R and ad_extract.R and ad_extract_save.R prior to this
@@ -71,7 +71,7 @@ for(k in 1:length(dir_names)){
     
       # Select whether to include match_tier = 4 or not
       if(!associated_brands & nrow(Ad_data)>0){
-        filter_brands = string_matches[brand_code_uc==RMS_brand_code & 
+        filter_brands = string_matches[brand_code_uc_corrected==RMS_brand_code & 
                                        product_module_code==as.integer(dir_name) & 
                                        match_tier!=4]$BrandCode
         Ad_data = Ad_data[BrandCode %in% filter_brands]

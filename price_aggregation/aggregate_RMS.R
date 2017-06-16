@@ -24,8 +24,9 @@ if(!run_grid){
   load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Products-Corrected.RData')
   # Get list of brands to aggregate from string_matches
   string_matches = fread("./string_matching/string_matches.csv")
-  topbrandcodes = unique(string_matches$brand_code_uc)
-  topmodulecodes = unique(string_matches$product_module_code)
+  string_matches = unique(string_matches, by="brand_code_uc_corrected")
+  topbrandcodes = string_matches$brand_code_uc_corrected
+  topmodulecodes = string_matches$product_module_code
   # Only keep necessary products columns
   products = products[, c("upc", "upc_ver_uc_corrected", "product_module_code",
                           "multi", "size1_amount", "brand_code_uc_corrected", 
@@ -129,7 +130,7 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
 
 # Stack upc files for a specified brand
 brand_upcs = function(brand_code, module_code){
-  upc_list = products[brand_code_uc_corrected==brand_code & 
+  upc_list = products[brand_code_uc_corrected==brand_code &
                         product_module_code==module_code &
                         (dataset_found_uc=='ALL' | dataset_found_uc=='RMS')]$upc
   if(length(upc_list)>0){
@@ -177,7 +178,6 @@ for(k in 1:length(topbrandcodes)){
     print("Merge to products...")
     DT = merge(DT, products, by=c("upc","upc_ver_uc_corrected")) # removed allow.cartesian=T
     DT[, dataset_found_uc:=NULL]
-    DT = DT[brand_code_uc_corrected==brand_code]
     print(nrow(DT))
     print("Begin aggregation...")
     aggregated = brandAggregator(DT, "store-revenue/week", 0.05)
