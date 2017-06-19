@@ -44,10 +44,10 @@ associated_brands = F # Indicator for including level 4 matches
 simulation_bool = T # Indicator for creating estimated data
 
 for(k in 1:length(dir_names)){ 
-#for(k in 1:1){
+#for(k in 1:1){ #7460/594103.rds has error reading from file, had to rebuild Brand-Aggregate file to fix
   print(k)
   dir_name = dir_names[[k]]
-  #dir_name = "1484" # Soft drinks = 1484, Paper towels = 7734, Yogurt = 3603, Diapers = 8444
+  #dir_name = "7460" # Soft drinks = 1484, Paper towels = 7734, Yogurt = 3603, Diapers = 8444
   print(dir_name)
   RMS_filenames = list.files(file.path(RMS_input_dir, dir_name), full.names=T)
   
