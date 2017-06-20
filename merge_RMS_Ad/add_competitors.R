@@ -21,7 +21,7 @@ load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Meta-Data-Corrected.RData
 meta_data[, product_module_code:=NULL]
 prod_meta = merge(products, meta_data)
 brands_RMS = prod_meta[, .(rev_sum = sum(revenue_RMS)), 
-                       by = c("brand_code_uc","brand_descr",
+                       by = c("brand_code_uc_corrected","brand_descr",
                               "product_module_code", "product_module_descr")]
 brands_RMS = brands_RMS[order(-rev_sum)]
 n = 300
@@ -40,7 +40,7 @@ for(k in 1:length(dir_names)){
   built_brands = sapply(merged_filenames, function(x){sub(pattern = "(.*?)\\..*$", replacement = "\\1", basename(x))})
   built_brands = sapply(built_brands, as.integer)
   competitors = brands_RMS[product_module_code == as.integer(dir_name) &
-                           brand_code_uc %in% built_brands][order(-rev_sum)]$brand_code_uc
+                           brand_code_uc_corrected %in% built_brands][order(-rev_sum)]$brand_code_uc_corrected
   competitors = sapply(competitors, as.character)
   top_competitors = sapply(competitors[1:min(num_competitors+1, length(competitors))], as.character)
   print(top_competitors)
