@@ -1,7 +1,7 @@
 # merge_RMS_Ad.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 16, 2017
+# Date last modified: June 20, 2017
 #
 # This R script handles price and quantity aggregation in RMS and Homescan Data
 # It only aggregates the RMS brands that have been matched with string_matching_app
@@ -141,8 +141,8 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
 }
 
 ## Main section -------------------------------
-foreach(k = 1:length(topbrandcodes)) %dopar% { 
-#for(k in 1:length(topbrandcodes)){ 
+#foreach(k = 1:length(topbrandcodes)) %dopar% { 
+for(k in 1:length(topbrandcodes)){ 
 #for(k in 1:1){
   print(k)
   brand_code = topbrandcodes[[k]] # Bud light = 520795, Coca-Cola R = 531429
