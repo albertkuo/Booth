@@ -1,4 +1,4 @@
-# merge_RMS_Ad.R
+# aggregate_RMS.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
 # Date last modified: June 20, 2017

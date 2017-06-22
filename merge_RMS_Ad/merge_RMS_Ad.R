@@ -1,7 +1,7 @@
 # merge_RMS_Ad.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 16, 2017
+# Date last modified: June 20, 2017
 #
 # This is an R script that merges RMS and Ad Intel based on brand, market, week
 # Run aggregate_RMS.R and ad_extract.R and ad_extract_save.R prior to this
@@ -44,7 +44,7 @@ associated_brands = F # Indicator for including level 4 matches
 simulation_bool = T # Indicator for creating estimated data
 
 for(k in 1:length(dir_names)){ 
-#for(k in 1:1){ #7460/594103.rds has error reading from file, had to rebuild Brand-Aggregate file to fix
+#for(k in 1:1){ 
   print(k)
   dir_name = dir_names[[k]]
   #dir_name = "7460" # Soft drinks = 1484, Paper towels = 7734, Yogurt = 3603, Diapers = 8444
@@ -146,7 +146,8 @@ for(k in 1:length(dir_names)){
         # Drop columns
         keep_cols = c("brand_code_uc_corrected", "product_module_code", "store_code_uc",
                       "dma_code", "week_end", "year", "price", "units", "promo_percentage",
-                      "promo_dummy", "Total_GRP", "Total_occ")
+                      "promo_dummy", "Total_GRP", "National_GRP", "Local_GRP",
+                      "Total_occ", "National_occ", "Local_occ")
         output = output[, keep_cols, with=F]
   
         if(nrow(output)>0){
