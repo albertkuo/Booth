@@ -1,7 +1,7 @@
 # build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 15, 2017
+# Date last modified: June 27, 2017
 #
 # This is an R script that will build R Formatted Ad Intel Files
 # using Nielsen_Raw tsv formatted files.
@@ -168,6 +168,8 @@ impute_imp <- function(prodocc, monthpath.string){
     prodoccimp2 = merge(prodocc, imp, by=keys_imp, all.x=T)
     prodoccimp = merge(prodoccimp, prodoccimp2, by=identifier_cols)
     prodoccimp[, imp_total:=params$weight1*TV_HH+params$weight2*TV_HH_2]
+    prodoccimp[is.na(imp_total), imp_total:=rowSums(.SD, na.rm=T), .SDcols=c("TV_HH", "TV_HH_2")]
+    prodoccimp[, DataStreamID:=3] # DataStreamID is always 3 for Spot TV
     prodoccimp[, TV_HH_2:=NULL]
   }
   return(prodoccimp)
@@ -179,7 +181,7 @@ impute_imp <- function(prodocc, monthpath.string){
 # Parallelization stops running before all months are done for some reason
 #foreach(i = 1:length(monthpath.strings)) %dopar% { 
 for(i in 1:length(monthpath.strings)){
-#for(i in 1:1){
+#for(i in 22:22){
   monthpath.string = monthpath.strings[[i]]
   uepath.string = paste(dirname(monthpath.string), "UE", sep="/")
   print(basename(monthpath.string))
@@ -274,7 +276,7 @@ for(i in 1:length(monthpath.strings)){
         mediatypestr = prodoccimpue$MediaTypeDesc[1]
         if(!"Spend" %in% names(prodoccimpue)){prodoccimpue[, Spend:=NA]}
         
-        # Aggregate sums by id_cols and cast (opposite of melt) data
+        # Aggregate sums by id_cols and cast data
         prodoccimpue[, GRP:=(imp_total/ue_total)*100]
         prodoccimpue$GRP[is.na(prodoccimpue$GRP)] = 0
         prodoccimpue[, Week:=ceiling_date(AdDate, "week")]
@@ -284,8 +286,8 @@ for(i in 1:length(monthpath.strings)){
                                     by=c(id_cols,"MediaTypeDesc","DataStreamID")]
         prodoccimpue = dcast(prodoccimpue, as.formula(paste0(paste(c(id_cols,"Spend_sum","Duration_sum","Number"), collapse="+"),
                                                              " ~ MediaTypeDesc+DataStreamID")),
-                            value.var=c("GRP_sum")) 
-        
+                            value.var=c("GRP_sum"))
+
         # Merge to build data
         setnames(prodoccimpue, c("Spend_sum", "Duration_sum", "Number"),
                  paste(mediatypestr,c("Spend", "Duration", "Number")))
@@ -361,7 +363,7 @@ for(i in 1:length(monthpath.strings)){
   imp2plus = 1
   occ_group4 = "(NI|LI|TN|TR)"             # Has imp2plus column
   occ_group5 = "(FS|LM|LN|LS|NM|NN|NS|OU)" # Does not have imp2plus column
-  #occ_group6 = "(LC)"                      # Local/Regional Cable TV doesn't have imp
+  #occ_group6 = "(LC)"                     # Local/Regional Cable TV doesn't have imp
   occ_groups = c(occ_group4, occ_group5)
   
   for(j in 1:length(occ_groups)){
