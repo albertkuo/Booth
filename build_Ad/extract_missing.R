@@ -1,7 +1,7 @@
 # extract_missing.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 15, 2017
+# Date last modified: June 27, 2017
 #
 # This is an R script that finds and extracts
 # non matching Network and Syndicated occurrences.
