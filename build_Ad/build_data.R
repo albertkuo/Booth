@@ -1,7 +1,7 @@
 # build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 27, 2017
+# Date last modified: June 29, 2017
 #
 # This is an R script that will build R Formatted Ad Intel Files
 # using Nielsen_Raw tsv formatted files.
@@ -157,7 +157,7 @@ impute_imp <- function(prodocc, monthpath.string){
   imp = read_imp(monthpath.string, impfilename)
   imp = imp[HispanicFlag=='N']
   imp[, c("MediaTypeID","PeriodYearMonth"):=NULL]
-  prodoccimp = merge(prodocc, imp, by=keys_imp, all.x=T) # removed all.cartesian=T
+  prodoccimp = merge(prodocc, imp, by=keys_imp, all.x=T)
   if(params$weight2!=0){
     substring(monthpath.string, nchar(monthpath.string)-1) = params$month2
     impfilename = list.files(pattern = "IMPC.*?SP", path = monthpath.string)
@@ -169,9 +169,10 @@ impute_imp <- function(prodocc, monthpath.string){
     prodoccimp = merge(prodoccimp, prodoccimp2, by=identifier_cols)
     prodoccimp[, imp_total:=params$weight1*TV_HH+params$weight2*TV_HH_2]
     prodoccimp[is.na(imp_total), imp_total:=rowSums(.SD, na.rm=T), .SDcols=c("TV_HH", "TV_HH_2")]
-    prodoccimp[, DataStreamID:=3] # DataStreamID is always 3 for Spot TV
     prodoccimp[, TV_HH_2:=NULL]
   }
+  prodoccimp = prodoccimp[!is.na(imp_total)]
+  prodoccimp[, DataStreamID:=3] # DataStreamID is always 3 for Spot TV
   return(prodoccimp)
 }
 
@@ -181,7 +182,7 @@ impute_imp <- function(prodocc, monthpath.string){
 # Parallelization stops running before all months are done for some reason
 #foreach(i = 1:length(monthpath.strings)) %dopar% { 
 for(i in 1:length(monthpath.strings)){
-#for(i in 22:22){
+#for(i in 48:48){
   monthpath.string = monthpath.strings[[i]]
   uepath.string = paste(dirname(monthpath.string), "UE", sep="/")
   print(basename(monthpath.string))
@@ -323,7 +324,7 @@ for(i in 1:length(monthpath.strings)){
     prodoccimp2 = impute_imp(impute_prodoccimp, monthpath.string)
     prodoccimp = rbind(prodoccimp, prodoccimp2, fill=T)
   }
-  
+
   uefilename = list.files(pattern = paste0("UE.*?",imp_groups[LOCAL_TV]), path = uepath.string)
   ue = read_ue(uepath.string, uefilename)
   prodoccimp[,rollDate:=AdDate]
@@ -418,8 +419,8 @@ for(i in 1:length(monthpath.strings)){
     
     # Save RDS file for the month to output_dir
     print(paste("Saving",basename(monthpath.string)))
+    print(dim(aggregated))
     saveRDS(aggregated, paste0(output_dir,"/",basename(monthpath.string),"_aggregated.rds"))
-    #saveRDS(aggregated, "test_aggregated.rds")
     rm(aggregated)
   } else{
     print("LIKELY ERROR: aggregated is empty")
