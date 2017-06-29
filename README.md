@@ -2,7 +2,7 @@
 This repository only contains scripts that are essential for building the RMS_Ad data. It **does not** contain any data or other auxiliary scripts used in data exploration.
 
 ## build_Ad
-Builds aggregated Ad Intel data from raw data (these scripts are still being modified).
+Builds aggregated Ad Intel data from raw data.
 
 - `extract_missing.R`: finds network TV ads missing from clearance and saves them in intermediary data files in missing_network
 - `build_data.R`: merges and aggregates raw Ad Intel data and saves the built data files in aggregated
