@@ -1,10 +1,10 @@
 # extract_missing.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 27, 2017
+# Date last modified: July 5, 2017
 #
 # This is an R script that finds and extracts
-# non matching Network and Syndicated occurrences.
+# non matching Network TV occurrences.
 
 library(foreach)
 library(doParallel)
@@ -62,7 +62,6 @@ time_window = 6 # 6 seconds
 # Main section  ----------
 foreach(i = 1:length(monthpath.strings)) %dopar% { 
 #for(i in 1:length(monthpath.strings)){
-#for(i in 1:1){
   monthpath.string = monthpath.strings[[i]]
   print(basename(monthpath.string))
   missing_DT_list = list()
@@ -89,7 +88,6 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
     
     # Subset Market (e.g. New York)
     for(marketcode in marketcodes){
-      #print(marketcode)
       tz = time_zones[MarketCode==marketcode]$time_zone
       tz = convert_timezone[time_zones_1==tz]$time_zones_2
       dc = dis[MarketCode==marketcode & Affiliation==provider]$DistributorCode
@@ -107,7 +105,6 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
       }
       
       # Create data table of Network, Network Clearance, Spot, and Syndicated Clearance
-      #print("Creating data table...")
       ny_clear = clear[DistributorCode %in% dc] #5015 = NY ABC, 5012 = NY CBS, 5060 = Chicago ABC, 5050=Chicago CBS
       ny_spot = spot[DistributorCode %in% dc]
       ny = rbind(ny_clear, ny_spot, fill=T)
@@ -118,7 +115,6 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
       ny = ny[order(time)]
       
       # Calculate time delays and matches -> non_missing Network TV occurrences
-      #print("Calculating delays and matches...")
       ny[, difftime_after:=diff(time)]
       ny[, difftime_before:=shift(difftime_after,1)]
       ny[, match_clearance:=(difftime_after<=time_window & 
@@ -141,7 +137,6 @@ foreach(i = 1:length(monthpath.strings)) %dopar% {
                                            explained_missing=NA, non_missing=NA)]
       
       # Calculate block_missing Network TV occurrences
-      #print("Calculating block_missing...")
       ny[, match_network:=(difftime_after<=time_window & 
                              shift(MediaTypeDesc, 1, type="lead")=="Network TV" &
                              PrimBrandCode==shift(PrimBrandCode, 1, type="lead")) 

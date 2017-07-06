@@ -1,7 +1,7 @@
 # aggregate_RMS.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 20, 2017
+# Date last modified: July 5, 2017
 #
 # This R script handles price and quantity aggregation in RMS and Homescan Data
 # It only aggregates the RMS brands that have been matched with string_matching_app
@@ -14,28 +14,21 @@ library(doParallel)
 
 registerDoParallel(cores = NULL)
 
-run_grid = T
-
-if(!run_grid){
-  load('./string_matching/data/Products-Corrected.RData')
-  # Sample file
-  load('./price_aggregation/1356240001.RData')
-} else {
-  load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Products-Corrected.RData')
-  # Get list of brands to aggregate from string_matches
-  string_matches = fread("./string_matching/string_matches.csv")
-  string_matches = unique(string_matches, by="brand_code_uc_corrected")
-  topbrandcodes = string_matches$brand_code_uc_corrected
-  topmodulecodes = string_matches$product_module_code
-  # Only keep necessary products columns
-  products = products[, c("upc", "upc_ver_uc_corrected", "product_module_code",
-                          "multi", "size1_amount", "brand_code_uc_corrected", 
-                          "dataset_found_uc"), with=F]
-  products = unique(products, by=c("upc", "upc_ver_uc_corrected"))
-}
-
 source_dir = '/grpshares/ghitsch/data/RMS-Build-2016/RMS-Processed/Modules'
 output_dir = '/grpshares/hitsch_shapiro_ads/data/RMS/Brand-Aggregates'
+
+## Read in data ---------------
+load('/grpshares/hitsch_shapiro_ads/data/RMS/Meta-Data/Products-Corrected.RData')
+# Get list of brands to aggregate
+string_matches = fread("./string_matching/string_matches.csv")
+string_matches = unique(string_matches, by=c("brand_code_uc_corrected", "product_module_code"))
+topbrandcodes = string_matches$brand_code_uc_corrected
+topmodulecodes = string_matches$product_module_code
+# Only keep necessary products columns
+products = products[, c("upc", "upc_ver_uc_corrected", "product_module_code",
+                        "multi", "size1_amount", "brand_code_uc_corrected", 
+                        "dataset_found_uc"), with=F]
+products = unique(products, by=c("upc", "upc_ver_uc_corrected"))
 
 ## Helper functions -----------
 # Stack upc files for a specified brand
@@ -90,7 +83,6 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
       DT_brand[, (c("size1_amount","multi")):=NULL, with=F]
       
       # Price Aggregation
-      #print("price aggregation")
       DT_brand[, revenue:=imputed_price*units]
       if(weight_type=="store-revenue/week"){
         DT_brand[, week_range:=as.integer(difftime(max(week_end), min(week_end), units="weeks")),
@@ -105,7 +97,6 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
       }
       
       # Promotion Aggregation
-      #print("promo aggregation")
       threshold = promotion_threshold
       DT_brand[, promo_weight:=weight*(!is.na(base_price)&!is.na(imputed_price))] 
       DT_brand[, promotion:=(base_price-imputed_price)/base_price > threshold]
@@ -116,7 +107,6 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
       DT_brand[, base_price_weighted:=base_weight*base_price/volume]
       
       # Aggregation Process
-      #print("aggregation")
       DT_brand = DT_brand[, .(units=sum(quantity, na.rm=T), 
                               equiv_price_weighted=sum(equiv_price_weighted, na.rm=T),
                               promotion_weighted=sum(promotion_weighted, na.rm=T),
@@ -131,7 +121,6 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
       DT_brand[, promo_dummy:=(base_price-price)/base_price > threshold]
       DT_brand = DT_brand[, .(brand_code_uc_corrected, product_module_code, store_code_uc, week_end,
                               price, units, base_price, promo_percentage, promo_dummy)]
-      #print("Copy to list")
       DT_brands[[i]] = copy(DT_brand)
     }
     output = rbindlist(DT_brands)
@@ -143,14 +132,12 @@ brandAggregator = function(DT, weight_type, promotion_threshold, processed_only 
 ## Main section -------------------------------
 #foreach(k = 1:length(topbrandcodes)) %dopar% { 
 for(k in 1:length(topbrandcodes)){ 
-#for(k in 1:1){
   print(k)
   brand_code = topbrandcodes[[k]] # Bud light = 520795, Coca-Cola R = 531429
   module_code = topmodulecodes[[k]] # Bud light = 5010, Coca-Cola = 1484
   #print(brand_code)
   #print(module_code)
   
-  #print("Reading UPC files")
   upc_filenames = paste(source_dir, module_code, brand_upcs(brand_code, module_code), sep='/')
   upc_files = list()
   for(i in 1:length(upc_filenames)){
@@ -165,19 +152,14 @@ for(k in 1:length(topbrandcodes)){
     }
   }
   
-  #print("Bind product files...")
   DT = rbindlist(upc_files)
   rm(upc_files)
   if(nrow(DT)>0){
-    #print("Fill NA...")
     Fill.NA.Prices(DT)
-    #print("Merge to products...")
     DT = merge(DT, products, by=c("upc","upc_ver_uc_corrected")) # removed allow.cartesian=T
     DT[, dataset_found_uc:=NULL]
     DT = DT[brand_code_uc_corrected==brand_code]
-    #print("Begin aggregation...")
     aggregated = brandAggregator(DT, "store-revenue/week", 0.05)
-    #print(head(aggregated))
     if(nrow(aggregated)>0){
       print("Saving...")
       dir.create(file.path(output_dir, toString(module_code)), showWarnings = FALSE)

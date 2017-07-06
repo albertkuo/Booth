@@ -1,7 +1,7 @@
 # build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 29, 2017
+# Date last modified: July 5, 2017
 #
 # This is an R script that will build R Formatted Ad Intel Files
 # using Nielsen_Raw tsv formatted files.
@@ -182,7 +182,6 @@ impute_imp <- function(prodocc, monthpath.string){
 # Parallelization stops running before all months are done for some reason
 #foreach(i = 1:length(monthpath.strings)) %dopar% { 
 for(i in 1:length(monthpath.strings)){
-#for(i in 48:48){
   monthpath.string = monthpath.strings[[i]]
   uepath.string = paste(dirname(monthpath.string), "UE", sep="/")
   print(basename(monthpath.string))
@@ -419,11 +418,9 @@ for(i in 1:length(monthpath.strings)){
     
     # Save RDS file for the month to output_dir
     print(paste("Saving",basename(monthpath.string)))
-    print(dim(aggregated))
     saveRDS(aggregated, paste0(output_dir,"/",basename(monthpath.string),"_aggregated.rds"))
     rm(aggregated)
   } else{
     print("LIKELY ERROR: aggregated is empty")
   }
 }
-
