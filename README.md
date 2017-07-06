@@ -1,6 +1,8 @@
 # Advertising Project
 This repository only contains scripts that are essential for building the RMS_Ad data. It **does not** contain any data or other auxiliary scripts used in data exploration.
 
+- `build_data_script.R`: master script that sources and runs key R scripts for building data
+
 ## build_Ad
 Builds aggregated Ad Intel data from raw data.
 
