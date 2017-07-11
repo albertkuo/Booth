@@ -1,7 +1,7 @@
 # ad_extract.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: June 16, 2017
+# Date last modified: July 11, 2017
 #
 # Read Ad Intel files and extract data corresponding to brands found in Brand-Aggregates
 # Save brand extracts in aggregated_extracts to be used later in merge_RMS_Ad.R
@@ -23,6 +23,7 @@ string_matches = fread('./string_matching/string_matches.csv')
 
 # Parameters
 datastream = 2 # datastream to use for National TV, note that Local TV only has Datastream = 3
+national_network_option = F # whether to use Network TV (national) or National Clearance (local)
 network_missing_option = 1 # whether we use missing, block_missing, or none to fill in Network TV
 missing_colnames_list = list(c("Network TV Local missing"),
                                 c("Network TV Local block_missing"),
@@ -49,9 +50,17 @@ for(i in 1:length(ad_filenames)){
       ad_data = ad_data_full[BrandCode %in% brand_matches]
 
       if(nrow(ad_data)>0){
-        national_colnames = c("Cable TV", "Spanish Language Cable TV")
-        local_colnames = c("Network Clearance Spot TV", "Syndicated Clearance Spot TV", "Spot TV",
-                           missing_colnames)
+        if(national_network_option){
+          national_colnames = c("Cable TV", "Spanish Language Cable TV", "Network TV", "Spanish Language Network TV")
+        } else{
+          national_colnames = c("Cable TV", "Spanish Language Cable TV")
+        }
+        if(national_network_option){
+          local_colnames = c("Syndicated Clearance Spot TV", "Spot TV")
+        } else{
+          local_colnames = c("Network Clearance Spot TV", "Syndicated Clearance Spot TV", "Spot TV",
+                             missing_colnames)
+        }
         
         ad_data[, National_GRP:=rowSums(.SD, na.rm=T),
                 .SDcols = paste(national_colnames, "GRP", datastream)]
