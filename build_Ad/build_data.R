@@ -1,7 +1,7 @@
 # build_data.R
 # -----------------------------------------------------------------------------
 # Author:             Albert Kuo
-# Date last modified: July 7, 2017
+# Date last modified: July 12, 2017
 #
 # This is an R script that will build R Formatted Ad Intel Files
 # using Nielsen_Raw tsv formatted files.
@@ -346,10 +346,10 @@ for(i in 1:length(monthpath.strings)){
                                                          " ~ MediaTypeDesc+DataStreamID+block_missing")),
                          value.var=c("GRP_sum", "Spend_sum", "Duration_sum", "Number")) 
     names(prodoccimpue) = sapply(names(prodoccimpue), change_name)
-    prodoccimpue[, `:=`(`GRP_sum_Network TV GRP 3_FALSE` = `GRP_sum_Network TV GRP 3_FALSE`+`GRP_sum_Network TV GRP 3_TRUE`,
-                        `Spend_sum_Network TV GRP 3_FALSE` = `Spend_sum_Network TV GRP 3_FALSE`+`Spend_sum_Network TV GRP 3_TRUE`,
-                        `Duration_sum_Network TV GRP 3_FALSE` = `Duration_sum_Network TV GRP 3_FALSE`+`Duration_sum_Network TV GRP 3_TRUE`,
-                        `Number_Network TV GRP 3_FALSE` = `Number_Network TV GRP 3_FALSE`+`Number_Network TV GRP 3_TRUE`)]
+    prodoccimpue[, `GRP_sum_Network TV GRP 3_FALSE`:=rowSums(.SD, na.rm=T), .SDcols=c("GRP_sum_Network TV GRP 3_FALSE", "GRP_sum_Network TV GRP 3_TRUE")]
+    prodoccimpue[, `Spend_sum_Network TV GRP 3_FALSE`:=rowSums(.SD, na.rm=T), .SDcols=c("Spend_sum_Network TV GRP 3_FALSE", "Spend_sum_Network TV GRP 3_TRUE")]
+    prodoccimpue[, `Duration_sum_Network TV GRP 3_FALSE`:=rowSums(.SD, na.rm=T), .SDcols=c("Duration_sum_Network TV GRP 3_FALSE", "Duration_sum_Network TV GRP 3_TRUE")]
+    prodoccimpue[, `Number_Network TV GRP 3_FALSE`:=rowSums(.SD, na.rm=T), .SDcols=c("Number_Network TV GRP 3_FALSE", "Number_Network TV GRP 3_TRUE")]
     setnames(prodoccimpue, c("GRP_sum_Network TV GRP 3_FALSE", "GRP_sum_Network TV GRP 3_TRUE",
                              "Spend_sum_Network TV GRP 3_FALSE", "Spend_sum_Network TV GRP 3_TRUE",
                              "Duration_sum_Network TV GRP 3_FALSE", "Duration_sum_Network TV GRP 3_TRUE",
