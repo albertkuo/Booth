@@ -85,7 +85,6 @@ for(i in 1:length(ad_filenames)){
                               "National_spend", "Local_spend"), with=F]
 
         dir.create(file.path(ad_output_dir, "aggregated_extracts", toString(dir_name)), showWarnings = FALSE)
-        print(nrow(ad_data))
         write.csv(ad_data, paste0(file.path(ad_output_dir, "aggregated_extracts", toString(dir_name)), "/",
                                   RMS_brand_code, "_", toString(i), ".csv"), row.names=F)
       }
